@@ -120,67 +120,6 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 #endif
 }
 
-void DataCollection::RegisterField(const std::string& name, GridFunction *gf)
-{
-   GridFunction *&ref = field_map[name];
-   if (own_data)
-   {
-      delete ref; // if newly allocated -> ref is null -> OK
-   }
-   ref = gf;
-}
-
-void DataCollection::DeregisterField(const std::string& name)
-{
-   FieldMapIterator it = field_map.find(name);
-   if (it != field_map.end())
-   {
-      if (own_data)
-      {
-         delete it->second;
-      }
-      field_map.erase(it);
-   }
-}
-
-void DataCollection::RegisterQField(const std::string& q_field_name,
-                                    QuadratureFunction *qf)
-{
-   QuadratureFunction *&ref = q_field_map[q_field_name];
-   if (own_data)
-   {
-      delete ref; // if newly allocated -> ref is null -> OK
-   }
-   ref = qf;
-}
-
-void DataCollection::DeregisterQField(const std::string& name)
-{
-   QFieldMapIterator it = q_field_map.find(name);
-   if (it != q_field_map.end())
-   {
-      if (own_data)
-      {
-         delete it->second;
-      }
-      q_field_map.erase(it);
-   }
-}
-
-GridFunction *DataCollection::GetField(const std::string& field_name)
-{
-   FieldMapConstIterator it = field_map.find(field_name);
-
-   return (it != field_map.end()) ? it->second : NULL;
-}
-
-QuadratureFunction *DataCollection::GetQField(const std::string& q_field_name)
-{
-   QFieldMapConstIterator it = q_field_map.find(q_field_name);
-
-   return (it != q_field_map.end()) ? it->second : NULL;
-}
-
 void DataCollection::SetPrefixPath(const std::string& prefix)
 {
    if (!prefix.empty())
@@ -326,17 +265,8 @@ void DataCollection::DeleteData()
    if (own_data) { delete mesh; }
    mesh = NULL;
 
-   for (FieldMapIterator it = field_map.begin(); it != field_map.end(); ++it)
-   {
-      if (own_data) { delete it->second; }
-      it->second = NULL;
-   }
-   for (QFieldMapIterator it = q_field_map.begin();
-        it != q_field_map.end(); ++it)
-   {
-      if (own_data) { delete it->second; }
-      it->second = NULL;
-   }
+   field_map.DeleteData(own_data);
+   q_field_map.DeleteData(own_data);
    own_data = false;
 }
 
@@ -504,7 +434,7 @@ void VisItDataCollection::LoadFields()
       }
       // TODO: 1) load parallel GridFunction on one processor
       //       2) load parallel GridFunction on the same number of processors
-      field_map[it->first] = new GridFunction(mesh, file);
+      field_map.Register(it->first, new GridFunction(mesh, file), own_data);
    }
 }
 

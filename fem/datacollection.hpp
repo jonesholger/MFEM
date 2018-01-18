@@ -20,17 +20,116 @@
 #include <string>
 #include <map>
 
+#include <iostream>
+
 namespace mfem
 {
+
+/// Lightweight adaptor over an std::map from strings to pointer to T
+template<typename T>
+class NamedFieldsMap
+{
+public:
+   typedef std::map<std::string, T*> MapType;
+   typedef typename MapType::iterator iterator;
+   typedef typename MapType::const_iterator const_iterator;
+
+   void Register(const std::string& fname, T* field, bool own_data)
+   {
+      T*& ref = field_map[fname];
+      if (own_data)
+      {
+         delete ref; // if newly allocated -> ref is null -> OK
+      }
+      ref = field;
+
+      std::cout << " Added '" << fname << "'; "
+                << " field is " << (field == NULL ? "null" : "not null;")
+                << " map has " << NumFields() << " entries."
+                << std::endl ;
+   }
+
+   void Deregister(const std::string& fname, bool own_data)
+   {
+      iterator it = field_map.find(fname);
+      if ( it != field_map.end() )
+      {
+         if (own_data)
+         {
+            delete it->second;
+         }
+         field_map.erase(it);
+      }
+   }
+
+   void DeleteData(bool own_data)
+   {
+      for (iterator it = field_map.begin(); it != field_map.end(); ++it)
+      {
+         if (own_data)
+         {
+            delete it->second;
+         }
+         it->second = NULL;
+      }
+   }
+
+   bool Has(const std::string& fname) const
+   {
+      return field_map.find(fname) != field_map.end();
+   }
+
+   T* Get(const std::string& fname) const
+   {
+      const_iterator it = field_map.find(fname);
+
+      std::cout << " Searched for '" << fname << "'; "
+                << " was " << (it != field_map.end() ? "there" : "not there; ")
+                << " map has " << NumFields() << " entries."
+                << std::endl ;
+
+      return it != field_map.end() ? it->second : NULL;
+   }
+
+   const MapType& GetMap() const { return field_map; }
+
+   int NumFields() const { return field_map.size(); }
+
+   iterator begin() { return field_map.begin(); }
+   const_iterator begin() const { return field_map.begin(); }
+
+   iterator end() { return field_map.end(); }
+   const_iterator end() const { return field_map.end(); }
+
+   iterator find(const std::string& fname)
+   { return field_map.find(fname); }
+
+   const_iterator find(const std::string& fname) const
+   { return field_map.find(fname); }
+
+   void clear() { field_map.clear(); }
+
+protected:
+   MapType field_map;
+};
+
 
 /** A class for collecting finite element data that is part of the same
     simulation. Currently, this class groups together grid functions (fields),
     quadrature functions (q-fields), and the mesh that they are defined on. */
 class DataCollection
 {
+private:
+   typedef NamedFieldsMap<GridFunction> GFieldMap;
+   typedef NamedFieldsMap<QuadratureFunction> QFieldMap;
 public:
-   typedef std::map<std::string, GridFunction*> FieldMapType;
-   typedef std::map<std::string, QuadratureFunction*> QFieldMapType;
+   typedef typename GFieldMap::MapType FieldMapType;
+   typedef typename GFieldMap::iterator FieldMapIterator;
+   typedef typename GFieldMap::const_iterator FieldMapConstIterator;
+
+   typedef typename QFieldMap::MapType QFieldMapType;
+   typedef typename QFieldMap::iterator QFieldMapIterator;
+   typedef typename QFieldMap::const_iterator QFieldMapConstIterator;
 
 protected:
    /// Name of the collection, used as a directory name when saving
@@ -40,16 +139,13 @@ protected:
    /// If not empty, it has '/' at the end.
    std::string prefix_path;
 
-   /// The fields and their names (used when saving)
-   typedef FieldMapType::iterator FieldMapIterator;
-   typedef FieldMapType::const_iterator FieldMapConstIterator;
-   /** An std::map containing the registered fields' names as keys (std::string)
+   /** A FieldMap mapping registered fields' names as keys (std::string)
        and their GridFunction pointers as values. */
-   FieldMapType field_map;
+   GFieldMap field_map;
 
-   typedef QFieldMapType::iterator QFieldMapIterator;
-   typedef QFieldMapType::const_iterator QFieldMapConstIterator;
-   QFieldMapType q_field_map;
+   /** A FieldMap mapping fields' names as keys (std::string)
+       and their QuadratureFunction pointers as values. */
+   QFieldMap q_field_map;
 
    /// The (common) mesh for the collected fields
    Mesh *mesh;
@@ -115,25 +211,31 @@ public:
    DataCollection(const std::string& collection_name, Mesh *mesh_ = NULL);
 
    /// Add a grid function to the collection
-   virtual void RegisterField(const std::string& field_name, GridFunction *gf);
+   virtual void RegisterField(const std::string& field_name, GridFunction *gf)
+   { field_map.Register(field_name, gf, own_data); }
 
    /// Remove a grid function from the collection
-   virtual void DeregisterField(const std::string& field_name);
+   virtual void DeregisterField(const std::string& field_name)
+   { field_map.Deregister(field_name, own_data); }
 
    /// Add a QuadratureFunction to the collection.
    virtual void RegisterQField(const std::string& q_field_name,
-                               QuadratureFunction *qf);
+                               QuadratureFunction *qf)
+   { q_field_map.Register(q_field_name, qf, own_data); }
+
 
    /// Remove a QuadratureFunction from the collection
-   virtual void DeregisterQField(const std::string& field_name);
+   virtual void DeregisterQField(const std::string& field_name)
+   { q_field_map.Deregister(field_name, own_data); }
 
    /// Check if a grid function is part of the collection
    bool HasField(const std::string& name) const
-   { return field_map.find(name) != field_map.end(); }
+   { return field_map.Has(name); }
 
    /// Get a pointer to a grid function in the collection.
    /** Returns NULL if @a field_name is not in the collection. */
-   GridFunction *GetField(const std::string& field_name);
+   GridFunction *GetField(const std::string& field_name)
+   { return field_map.Get(field_name); }
 
 #ifdef MFEM_USE_MPI
    /// Get a pointer to a parallel grid function in the collection.
@@ -146,21 +248,24 @@ public:
 
    /// Check if a QuadratureFunction with the given name is in the collection.
    bool HasQField(const std::string& q_field_name) const
-   { return q_field_map.find(q_field_name) != q_field_map.end(); }
+   { return q_field_map.Has(q_field_name); }
 
    /// Get a pointer to a QuadratureFunction in the collection.
    /** Returns NULL if @a field_name is not in the collection. */
-   QuadratureFunction *GetQField(const std::string& q_field_name);
+   QuadratureFunction *GetQField(const std::string& q_field_name)
+   { return q_field_map.Get(q_field_name); }
 
    /// Get a const reference to the internal field map.
    /** The keys in the map are the field names and the values are pointers to
        GridFunction%s. */
-   const FieldMapType &GetFieldMap() const { return field_map; }
+   const FieldMapType &GetFieldMap() const
+   { return field_map.GetMap(); }
 
    /// Get a const reference to the internal q-field map.
    /** The keys in the map are the q-field names and the values are pointers to
        QuadratureFunction%s. */
-   const QFieldMapType &GetQFieldMap() const { return q_field_map; }
+   const QFieldMapType &GetQFieldMap() const
+   { return q_field_map.GetMap(); }
 
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }
