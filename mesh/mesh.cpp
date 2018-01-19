@@ -7278,11 +7278,11 @@ void Mesh::PrintVTK(std::ostream &out)
 
       if (!strcmp(fec_name, "H1_0D_P1"))
       {
-        order = 0;
+         order = 0;
       }
       else if (!strcmp(fec_name, "Linear") ||
-          !strcmp(fec_name, "H1_2D_P1") ||
-          !strcmp(fec_name, "H1_3D_P1"))
+               !strcmp(fec_name, "H1_2D_P1") ||
+               !strcmp(fec_name, "H1_3D_P1"))
       {
          order = 1;
       }
@@ -7304,8 +7304,9 @@ void Mesh::PrintVTK(std::ostream &out)
          out << dofs.Size();
          if (order == 0)
          {
-           MFEM_ASSERT(dofs.Size() == 1, "Point meshes should have a single dof per element");
-           out << " " << dofs[0];
+            MFEM_ASSERT(dofs.Size() == 1,
+                        "Point meshes should have a single dof per element");
+            out << " " << dofs[0];
          }
          if (order == 1)
          {
@@ -7343,10 +7344,10 @@ void Mesh::PrintVTK(std::ostream &out)
       int vtk_cell_type = 5;
       if (order == 0)
       {
-        switch (elements[i]->GetGeometryType())
-        {
-           case Geometry::POINT:        vtk_cell_type = 1;   break;
-        }
+         switch (elements[i]->GetGeometryType())
+         {
+            case Geometry::POINT:        vtk_cell_type = 1;   break;
+         }
       }
       if (order == 1)
       {
