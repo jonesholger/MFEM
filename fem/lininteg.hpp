@@ -32,7 +32,6 @@ public:
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,
                                        Vector &elvect) = 0;
-  
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        FaceElementTransformations &Tr,
                                        Vector &elvect);
@@ -393,7 +392,7 @@ protected:
    Coefficient *lambda, *mu;
    double alpha, kappa;
 
-#ifndef MFEM_THRAED_SAFE
+#ifndef MFEM_THREAD_SAFE
    Vector shape;
    DenseMatrix dshape;
    DenseMatrix adjJ;

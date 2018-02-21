@@ -297,6 +297,79 @@ public:
    virtual void Step(TVector &x, double &t, double &dt);
 };
 
+/// The SIASolver class is based on the Symplectic Integration Algorithm
+/// described in "A Symplectic Integration Algorithm for Separable Hamiltonian
+/// Functions" by J. Candy and W. Rozmus, Journal of Computational Physics,
+/// Vol. 92, pages 230-256 (1991).
+
+/** The Symplectic Integration Algorithm (SIA) is designed for systems of first
+    order ODEs derived from a Hamiltonian.
+       H(q,p,t) = T(p) + V(q,t)
+    Which leads to the equations:
+       dq/dt = dT/dp
+       dp/dt = -dV/dq
+    In the integrator the operators P and F are defined to be:
+       P = dT/dp
+       F = -dV/dq
+ */
+template <class TVector>
+class TSIASolver
+{
+public:
+   TSIASolver() : F_(NULL), P_(NULL) {}
+
+   virtual void Init(TOperator<TVector> &P, TTimeDependentOperator<TVector> & F);
+
+   virtual void Step(TVector &q, TVector &p, double &t, double &dt) = 0;
+
+   virtual void Run(TVector &q, TVector &p, double &t, double &dt, double tf)
+   {
+      while (t < tf) { Step(q, p, t, dt); }
+   }
+
+   virtual ~TSIASolver() {}
+
+protected:
+   TTimeDependentOperator<TVector> * F_; // p_{i+1} = p_{i} + dt F(q_{i})
+   TOperator<TVector>              * P_; // q_{i+1} = q_{i} + dt P(p_{i+1})
+
+   mutable TVector dp_;
+   mutable TVector dq_;
+};
+
+// First order Symplectic Integration Algorithm
+template <class TVector>
+class TSIA1Solver : public TSIASolver<TVector>
+{
+public:
+  TSIA1Solver() {}
+   void Step(TVector &q, TVector &p, double &t, double &dt);
+};
+
+// Second order Symplectic Integration Algorithm
+template <class TVector>
+class TSIA2Solver : public TSIASolver<TVector>
+{
+public:
+   TSIA2Solver() {}
+   void Step(TVector &q, TVector &p, double &t, double &dt);
+};
+
+// Variable order Symplectic Integration Algorithm (orders 1-4)
+template <class TVector>
+class TSIAVSolver : public TSIASolver<TVector>
+{
+public:
+   TSIAVSolver(int order);
+   void Step(TVector &q, TVector &p, double &t, double &dt);
+
+private:
+   int order_;
+
+   Array<double> a_;
+   Array<double> b_;
+};
+
 typedef TForwardEulerSolver<Vector>     ForwardEulerSolver;
 typedef TRK2Solver<Vector>              RK2Solver;
 typedef TRK3SSPSolver<Vector>           RK3SSPSolver;
@@ -309,6 +382,10 @@ typedef TImplicitMidpointSolver<Vector> ImplicitMidpointSolver;
 typedef TSDIRK23Solver<Vector>          SDIRK23Solver;
 typedef TSDIRK34Solver<Vector>          SDIRK34Solver;
 typedef TSDIRK33Solver<Vector>          SDIRK33Solver;
+typedef TSIASolver<Vector>              SIASolver;
+typedef TSIA1Solver<Vector>             SIA1Solver;
+typedef TSIA2Solver<Vector>             SIA2Solver;
+typedef TSIAVSolver<Vector>             SIAVSolver;
 
 }
 

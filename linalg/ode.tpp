@@ -515,4 +515,114 @@ void TSDIRK33Solver<TVector>::Step(TVector &x, double &t, double &dt)
    t += dt;
 }
 
+template <class TVector>
+void
+TSIASolver<TVector>::Init(TOperator<TVector> &P, TTimeDependentOperator<TVector> & F)
+{
+   TSIASolver<TVector>::P_ = &P; TSIASolver<TVector>::F_ = &F;
+
+   TSIASolver<TVector>::dp_.SetSize(TSIASolver<TVector>::F_->Height());
+   TSIASolver<TVector>::dq_.SetSize(TSIASolver<TVector>::P_->Height());
+}
+
+template <class TVector>
+void
+TSIA1Solver<TVector>::Step(TVector &q, TVector &p, double &t, double &dt)
+{
+   TSIASolver<TVector>::F_->SetTime(t);
+   TSIASolver<TVector>::F_->Mult(q,TSIASolver<TVector>::dp_);
+   p.Add(dt,TSIASolver<TVector>::dp_);
+
+   TSIASolver<TVector>::P_->Mult(p,TSIASolver<TVector>::dq_);
+   q.Add(dt,TSIASolver<TVector>::dq_);
+
+   t += dt;
+}
+
+template <class TVector>
+void
+TSIA2Solver<TVector>::Step(TVector &q, TVector &p, double &t, double &dt)
+{
+   TSIASolver<TVector>::P_->Mult(p,TSIASolver<TVector>::dq_);
+   q.Add(0.5*dt,TSIASolver<TVector>::dq_);
+ 
+   TSIASolver<TVector>::F_->SetTime(t+0.5*dt);
+   TSIASolver<TVector>::F_->Mult(q,TSIASolver<TVector>::dp_);
+   p.Add(dt,TSIASolver<TVector>::dp_);
+
+   TSIASolver<TVector>::P_->Mult(p,TSIASolver<TVector>::dq_);
+   q.Add(0.5*dt,TSIASolver<TVector>::dq_);
+
+   t += dt;
+}
+
+template <class TVector>
+TSIAVSolver<TVector>::TSIAVSolver(int order)
+   : order_(order)
+{
+   a_.SetSize(order);
+   b_.SetSize(order);
+
+   switch (order_)
+   {
+      case 1:
+         a_[0] = 1.0;
+         b_[0] = 1.0;
+         break;
+      case 2:
+         a_[0] = 0.5;
+         a_[1] = 0.5;
+         b_[0] = 0.0;
+         b_[1] = 1.0;
+         break;
+      case 3:
+         a_[0] =  2.0/3.0;
+         a_[1] = -2.0/3.0;
+         a_[2] =  1.0;
+         b_[0] =  7.0/24.0;
+         b_[1] =  0.75;
+         b_[2] = -1.0/24.0;
+         break;
+      case 4:
+         a_[0] = (2.0+pow(2.0,1.0/3.0)+pow(2.0,-1.0/3.0))/6.0;
+         a_[1] = (1.0-pow(2.0,1.0/3.0)-pow(2.0,-1.0/3.0))/6.0;
+         a_[2] = a_[1];
+         a_[3] = a_[0];
+         b_[0] = 0.0;
+         b_[1] = 1.0/(2.0-pow(2.0,1.0/3.0));
+         b_[2] = 1.0/(1.0-pow(2.0,2.0/3.0));
+         b_[3] = b_[1];
+         break;
+      default:
+         MFEM_ASSERT(false, "Unsupported order in SIAVSolver");
+   };
+}
+
+template <class TVector>
+void
+TSIAVSolver<TVector>::Step(TVector &q, TVector &p, double &t, double &dt)
+{
+   for (int i=0; i<order_; i++)
+   {
+      if ( b_[i] != 0.0 )
+      {
+         TSIASolver<TVector>::F_->SetTime(t);
+         if ( TSIASolver<TVector>::F_->isExplicit() )
+         {
+            TSIASolver<TVector>::F_->Mult(q, TSIASolver<TVector>::dp_);
+         }
+         else
+         {
+            TSIASolver<TVector>::F_->ImplicitSolve(b_[i] * dt, q, TSIASolver<TVector>::dp_);
+         }
+         p.Add(b_[i] * dt, TSIASolver<TVector>::dp_);
+      }
+
+      TSIASolver<TVector>::P_->Mult(p, TSIASolver<TVector>::dq_);
+      q.Add(a_[i] * dt, TSIASolver<TVector>::dq_);
+
+      t += a_[i] * dt;
+   }
+}
+
 }
