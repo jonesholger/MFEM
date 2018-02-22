@@ -404,23 +404,13 @@ endif()
 
 # Add 'check' target - quick test
 if (NOT MFEM_USE_MPI)
-<<<<<<< HEAD
   add_custom_target(check_mfem
-    ${CMAKE_CTEST_COMMAND} -R ex1_ser -E performance -C ${CMAKE_CFG_INTDIR}
-=======
-  add_custom_target(check
     ${CMAKE_CTEST_COMMAND} -R '^ex1_ser' -C ${CMAKE_CFG_INTDIR}
->>>>>>> raja-dev
     USES_TERMINAL)
   add_dependencies(check_mfem ex1)
 else()
-<<<<<<< HEAD
   add_custom_target(check_mfem
-    ${CMAKE_CTEST_COMMAND} -R ex1p -E performance -C ${CMAKE_CFG_INTDIR}
-=======
-  add_custom_target(check
     ${CMAKE_CTEST_COMMAND} -R '^ex1p' -C ${CMAKE_CFG_INTDIR}
->>>>>>> raja-dev
     USES_TERMINAL)
   add_dependencies(check_mfem ex1p)
 endif()
