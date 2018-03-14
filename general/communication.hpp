@@ -125,7 +125,7 @@ public:
                        aggregating over groups. */
    };
 
-private:
+//private:
    GroupTopology &gtopo;
    Mode mode;
    Table group_ldof;
