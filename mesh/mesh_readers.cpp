@@ -415,6 +415,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
    Vector points;
    {
       input >> np >> ws;
+      std::cerr << "Number of Points: " << np << std::endl;
       points.SetSize(3*np);
       getline(input, buff); // "double"
       for (i = 0; i < points.Size(); i++)
@@ -423,13 +424,25 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       }
    }
 
+   //skip metadata
+   do
+   {
+      input >> buff;
+      if (!input.good())
+      {
+         MFEM_ABORT("VTK mesh does not have CELLS data!");
+      }
+   }
+   while (buff != "CELLS");
+
    // Read the cells
    NumOfElements = n = 0;
    Array<int> cells_data;
-   input >> ws >> buff;
+   //input >> ws >> buff;
    if (buff == "CELLS")
    {
       input >> NumOfElements >> n >> ws;
+      std::cerr << "Number of Elements: " << NumOfElements << " of size: " << n << std::endl;
       cells_data.SetSize(n);
       for (i = 0; i < n; i++)
       {
@@ -515,6 +528,22 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                elem_order = 2;
                elements[i] = new Hexahedron(&cells_data[j+1]);
                break;
+            case 70: // Lagrange quadrilateral
+               std::cerr << "Lagrange Quadrilateral: " << cells_data[j] << std::endl;
+               elem_dim = 2;
+               //order = sqrt(cells_data[j])-1;
+               // set order to one to make sure linear mesh works
+               elem_order = 1;
+               elements[i] = new Quadrilateral(&cells_data[j+1]);
+               break;    
+            case 72: // Lagrange hex
+               std::cerr << "Lagrange Hex: " << cells_data[j] << std::endl;
+               elem_dim = 3;
+               //order = sqrt(cells_data[j])-1;
+               // set order to one to make sure linear mesh works
+               elem_order = 1;
+               elements[i] = new Hexahedron(&cells_data[j+1]);
+               break;    
             default:
                MFEM_ABORT("VTK mesh : cell type " << ct << " is not supported!");
                return;

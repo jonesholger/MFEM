@@ -2977,9 +2977,11 @@ void Mesh::Loader(std::istream &input, int generate_edges,
    {
       ReadTrueGridMesh(input);
    }
-   else if (mesh_type == "# vtk DataFile Version 3.0" ||
+   else if (mesh_type == "# vtk DataFile Version 4.2" ||
+            mesh_type == "# vtk DataFile Version 3.0" ||
             mesh_type == "# vtk DataFile Version 2.0") // VTK
    {
+      std::cerr << "Processing VTK mesh: " << mesh_type << std::endl;
       ReadVTKMesh(input, curved, read_gf, finalize_topo);
    }
    else if (mesh_type == "MFEM NURBS mesh v1.0")
