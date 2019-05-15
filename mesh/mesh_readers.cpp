@@ -425,6 +425,14 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
    }
 
    //skip metadata
+   // Looks like:
+   // METADATA
+   //INFORMATION 2
+   //NAME L2_NORM_RANGE LOCATION vtkDataArray
+   //DATA 2 0 5.19615 
+   //NAME L2_NORM_FINITE_RANGE LOCATION vtkDataArray
+   //DATA 2 0 5.19615 
+
    do
    {
       input >> buff;
@@ -529,19 +537,15 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                elements[i] = new Hexahedron(&cells_data[j+1]);
                break;
             case 70: // Lagrange quadrilateral
-               std::cerr << "Lagrange Quadrilateral: " << cells_data[j] << std::endl;
+               //std::cerr << "Lagrange Quadrilateral: " << cells_data[j] << std::endl;
                elem_dim = 2;
-               //order = sqrt(cells_data[j])-1;
-               // set order to one to make sure linear mesh works
-               elem_order = 1;
+               elem_order = std::sqrt(cells_data[j])-1;
                elements[i] = new Quadrilateral(&cells_data[j+1]);
                break;    
             case 72: // Lagrange hex
-               std::cerr << "Lagrange Hex: " << cells_data[j] << std::endl;
+               //std::cerr << "Lagrange Hex: " << cells_data[j] << std::endl;
                elem_dim = 3;
-               //order = sqrt(cells_data[j])-1;
-               // set order to one to make sure linear mesh works
-               elem_order = 1;
+               elem_order = std::cbrt(cells_data[j])-1;
                elements[i] = new Hexahedron(&cells_data[j+1]);
                break;    
             default:
@@ -668,7 +672,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       for (n = i = 0; i < NumOfElements; i++)
       {
          fes->GetElementDofs(i, dofs);
-         const int *vtk_mfem;
+         const int *vtk_mfem;         
          switch (elements[i]->GetGeometryType())
          {
             case Geometry::TRIANGLE:
@@ -714,9 +718,182 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             }
          }
       }
+      points.Destroy();
 
       read_gf = 0;
-   }
+   } // else order == 2
+   else if (order > 2)
+   {
+      // Lagrange High-Order Cells, note that we're relying on quadratic order to be handled by legacy code
+      // Also, we expect to copy some redundant code for now for the vertex gf entries
+      curved = 1;
+
+      // generate new enumeration for the vertices; already visited vertices are ignored
+      Array<int> pts_dof(np);
+      pts_dof = -1;
+      for (n = i = 0; i < NumOfElements; i++)
+      {
+         int *v = elements[i]->GetVertices();
+         int nv = elements[i]->GetNVertices();
+         for (j = 0; j < nv; j++)
+            if (pts_dof[v[j]] == -1)
+            {
+               pts_dof[v[j]] = n++;
+               std::cerr << "pts_dof[" << v[j] << "] : " << pts_dof[v[j]] << std::endl;
+            }
+      }
+ 
+      // The following loop reorders pts_dofs so vertices are visited in canonical order 
+      //  lowest r,s,t paramter to highest
+      //  verify by printing coords 
+      // e.g. for 3x3 unit quads here is the order [index] = [x,y,z]
+      // [0] = [0,0,0]
+      // [1] = [1,0,0]
+      // [2] = [2,0,0]
+      // [3] = [3,0,0]
+      // [4] = [0,1,0]
+      // [5] = [1,1,0]
+      // [6] = [2,1,0]
+      // [7] = [3,1,0]
+      // [8] = [0,2,0]
+      // [9] = [1,2,0]
+      // [10] = [2,2,0]
+      // [11] = [3,2,0]
+      // [12] = [0,3,0]
+      // [13] = [1,3,0]
+      // [14] = [2,3,0]
+      // [15] = [3,3,0]
+
+      for (n = i = 0; i < np; i++)
+         if (pts_dof[i] != -1)
+         {
+            int orig = pts_dof[i];
+            pts_dof[i] = n++;
+            double x = points(3*pts_dof[i]+0);
+            double y = points(3*pts_dof[i]+1);
+            double z = points(3*pts_dof[i]+2);
+            std::cerr << "[" << i << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }    
+
+      // update the element vertices
+      // This loop seems redundant for simple meshes, see if we can find a counter to the redundancy later
+      for (i = 0; i < NumOfElements; i++)
+      {
+         int *v = elements[i]->GetVertices();
+         int nv = elements[i]->GetNVertices();
+         for (j = 0; j < nv; j++)
+         {  
+            int origV  = v[j];
+            v[j] = pts_dof[v[j]];
+            //std::cerr << "orig: " << origV << " new: " << v[j] << std::endl;
+         }
+      }
+      // Define the 'vertices' from the 'points' through the 'pts_dof' map
+      NumOfVertices = n;
+      vertices.SetSize(n);
+      for (i = 0; i < np; i++)
+      {
+         if ((j = pts_dof[i]) != -1)
+         {
+            vertices[j](0) = points(3*i+0);
+            vertices[j](1) = points(3*i+1);
+            vertices[j](2) = points(3*i+2);
+         }
+      }
+
+      // No boundary is defined in a VTK mesh
+      NumOfBdrElements = 0;
+
+      // Generate faces and edges so that we can define quadratic
+      // FE space on the mesh
+      FinalizeTopology();
+      finalize_topo = false;
+
+      // Define quadratic FE space
+      FiniteElementCollection *fec = new H1_FECollection(order,Dim,BasisType::ClosedUniform);
+      FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+      Nodes = new GridFunction(fes);
+      Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
+      own_nodes = 1;
+      // Map vtk points to edge/face/element dofs
+      Array<int> dofs;
+
+      // setup some mappings for high order cells, similar to fixed quadratic arrays e.g. vtk_quadratic_hex;
+      Array<int> vtk_map;
+      int quad_size = pow(order+1,2);
+      Array<int> vtk_quad_70(quad_size);
+      for(i=0;i<quad_size;++i)
+      {
+         vtk_quad_70[i] = i; // identity -- i.e. follows mfem convention
+      }
+      
+      int hex_size = pow(order+1,3);
+      Array<int> vtk_hex_72(hex_size);
+      for(i=0;i<quad_size;++i)
+      {
+         vtk_hex_72[i] = i; // identity -- i.e. follows mfem convention
+      }
+
+      for (n = i = 0; i < NumOfElements; i++)
+      {
+         fes->GetElementDofs(i, dofs);
+         std::cerr << "GetElementDofs[" << dofs.Size() << "] :";
+         for(int di=0; di < dofs.Size(); ++di)
+         {
+            cerr << " " << dofs[di];
+         }
+         std::cerr << std::endl;
+         switch (elements[i]->GetGeometryType())
+         {
+            case Geometry::SQUARE:
+               vtk_map = vtk_quad_70; // identity map
+               break;
+            case Geometry::TETRAHEDRON:
+               break;
+            case Geometry::CUBE:
+               vtk_map = vtk_hex_72; //identity
+               break;
+            case Geometry::PRISM:
+               break;
+            default:
+               break;
+         }
+
+         for (n++, j = 0; j < dofs.Size(); j++, n++)
+         {
+            if (pts_dof[cells_data[n]] == -1)
+            {
+               pts_dof[cells_data[n]] = dofs[vtk_map[j]];
+            }
+            else
+            {
+               if (pts_dof[cells_data[n]] != dofs[vtk_map[j]])
+               {
+                  MFEM_ABORT("VTK mesh : inconsistent mesh!");
+               }
+            }
+         }
+      } // for NumOfElements
+
+      // Define the 'Nodes' from the 'points' through the 'pts_dof' map
+      for (i = 0; i < np; i++)
+      {
+         dofs.SetSize(1);
+         if ((dofs[0] = pts_dof[i]) != -1)
+         {
+            fes->DofsToVDofs(dofs);
+            for (j = 0; j < dofs.Size(); j++)
+            {
+               (*Nodes)(dofs[j]) = points(3*i+j);
+            }
+         }
+      }
+      points.Destroy();
+
+      read_gf = 0;
+
+   } // else order > 2
 }
 
 void Mesh::ReadNURBSMesh(std::istream &input, int &curved, int &read_gf)
