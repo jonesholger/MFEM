@@ -891,17 +891,25 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 
       }
 
-      for(i = 0; i < face_left.Size(); i++, nn++)
       {
-         face_left[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "face_left[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
+         // Face left needs to be permuted via exchange top<->bottom so lower values of n correlate to lower z coords
+         for (int k=order-2; k>=0; k--)
+         {
+            for(j=0;j<order-1;j++)
+            {
+               face_left[k*(order-1)+j] = nn;
+               //std::cerr << "loading face_left index: " << k*(order-1)+j << std::endl;
+               double x = points(3*cells_data[nn+1]+0);
+               double y = points(3*cells_data[nn+1]+1);
+               double z = points(3*cells_data[nn+1]+2);
+               std::cerr << "face_left[" << nn << "] " ;
+               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+               nn++;
+            }
+         }
       }
-     for(i = 0; i < face_right.Size(); i++, nn++)
+
+      for(i = 0; i < face_right.Size(); i++, nn++)
       {
          face_right[i] = nn;
          double x = points(3*cells_data[nn+1]+0);
@@ -921,24 +929,39 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
 
       }
-      for(i = 0; i < face_rear.Size(); i++, nn++)
       {
-         face_rear[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "face_rear[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
+         // face rear needs to be permuted so increasing n has decreasing x; exchange left<->right
+         for(int k=0; k<order-1; k++)
+         {
+            for(j=order-2; j>=0; j--)
+            {
+               face_rear[k*(order-1)+j] = nn;
+               //std::cerr << "loading face_rear index: " << k*(order-1)+j << std::endl;
+               double x = points(3*cells_data[nn+1]+0);
+               double y = points(3*cells_data[nn+1]+1);
+               double z = points(3*cells_data[nn+1]+2);
+               std::cerr << "face_rear[" << nn << "] " ;
+               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+               nn++;
+            }
+         }
       }
-      for(i = 0; i < face_bottom.Size(); i++, nn++)
       {
-         face_bottom[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "face_bottom[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         // face bottom needs to be permuted so increasing n has decreasing x; exchange left<->right
+         for(int k=0; k<order-1; k++)
+         {
+            for(j=order-2; j>=0; j--)
+            {
+               face_bottom[k*(order-1)+j] = nn;
+               //std::cerr << "loading face_bottom index: " << k*(order-1)+j << std::endl;
+               double x = points(3*cells_data[nn+1]+0);
+               double y = points(3*cells_data[nn+1]+1);
+               double z = points(3*cells_data[nn+1]+2);
+               std::cerr << "face_bottom[" << nn << "] " ;
+               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+               nn++;
+            }
+         }
       }
       for(i = 0; i < face_top.Size(); i++, nn++)
       {
@@ -975,6 +998,154 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       vtk_hex_72.Append(volume);
 
       std::cerr << "vtk_hex_72.Size() : " << vtk_hex_72.Size() << std::endl;
+
+      // Diagnostic TensorBasis analog
+      //
+
+     
+      {
+         Array<int> dof_map;
+         int p = order;
+         const int p1 = p + 1;
+         dof_map.SetSize(p1*p1*p1);
+
+         // vertices
+         dof_map[0 + (0 + 0*p1)*p1] = 0;
+         dof_map[p + (0 + 0*p1)*p1] = 1;
+         dof_map[p + (p + 0*p1)*p1] = 2;
+         dof_map[0 + (p + 0*p1)*p1] = 3;
+         dof_map[0 + (0 + p*p1)*p1] = 4;
+         dof_map[p + (0 + p*p1)*p1] = 5;
+         dof_map[p + (p + p*p1)*p1] = 6;
+         dof_map[0 + (p + p*p1)*p1] = 7;
+
+         // edges (see Hexahedron::edges in mesh/hexahedron.cpp)
+         int o = 8;
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[i + (0 + 0*p1)*p1] = o++;   // (0,1)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[p + (i + 0*p1)*p1] = o++;   // (1,2)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[i + (p + 0*p1)*p1] = o++;   // (3,2)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[0 + (i + 0*p1)*p1] = o++;   // (0,3)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[i + (0 + p*p1)*p1] = o++;   // (4,5)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[p + (i + p*p1)*p1] = o++;   // (5,6)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[i + (p + p*p1)*p1] = o++;   // (7,6)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[0 + (i + p*p1)*p1] = o++;   // (4,7)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[0 + (0 + i*p1)*p1] = o++;   // (0,4)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[p + (0 + i*p1)*p1] = o++;   // (1,5)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[p + (p + i*p1)*p1] = o++;   // (2,6)
+         }
+         for (int i = 1; i < p; i++)
+         {
+            dof_map[0 + (p + i*p1)*p1] = o++;   // (3,7)
+         }
+
+         // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
+         for (int j = 1; j < p; j++)
+         {
+            for (int i = 1; i < p; i++)
+            {
+               dof_map[i + ((p-j) + 0*p1)*p1] = o;   // (3,2,1,0)
+               std::cerr << "dof_map_bottom[" << i + ((p-j) + 0*p1)*p1 << "] = " << o << std::endl;
+               o++;
+            }
+         }
+         for (int j = 1; j < p; j++)
+         {
+            for (int i = 1; i < p; i++)
+            {
+               dof_map[i + (0 + j*p1)*p1] = o;   // (0,1,5,4)
+               std::cerr << "dof_map_front[" <<i + (0 + j*p1)*p1<< "] = " << o << std::endl;
+               o++;
+            }
+         }
+         for (int j = 1; j < p; j++)
+         {
+            for (int i = 1; i < p; i++)
+            {
+               dof_map[p + (i + j*p1)*p1] = o;   // (1,2,6,5)
+               std::cerr << "dof_map_right[" <<p + (i + j*p1)*p1<< "] = " << o << std::endl;
+               o++;
+            }
+         }
+         for (int j = 1; j < p; j++)
+         {
+            for (int i = 1; i < p; i++)
+            {
+               dof_map[(p-i) + (p + j*p1)*p1] = o;   // (2,3,7,6)
+               std::cerr << "dof_map_rear[" <<(p-i) + (p + j*p1)*p1<< "] = " << o << std::endl;
+               o++;
+            }
+         }
+         for (int j = 1; j < p; j++)
+         {
+            for (int i = 1; i < p; i++)
+            {
+               dof_map[0 + ((p-i) + j*p1)*p1] = o;   // (3,0,4,7)
+               std::cerr << "dof_map_left[" <<0 + ((p-i) + j*p1)*p1<< "] = " << o << std::endl;
+               o++;
+            }
+         }
+         for (int j = 1; j < p; j++)
+         {
+            for (int i = 1; i < p; i++)
+            {
+               dof_map[i + (j + p*p1)*p1] = o;   // (4,5,6,7)
+               std::cerr << "dof_map_top[" <<i + (j + p*p1)*p1 << "] = " << o << std::endl;
+               o++;
+            }
+         }
+
+         // interior
+         for (int k = 1; k < p; k++)
+         {
+            for (int j = 1; j < p; j++)
+            {
+               for (int i = 1; i < p; i++)
+               {
+                  dof_map[i + (j + k*p1)*p1] = o;
+                  std::cerr << "dof_map_top[" <<i + (j + k*p1)*p1<< "] = " << o << std::endl;
+                  o++;
+               }
+            }
+         }
+           
+         for(int i= 0; i < dof_map.Size(); i++)
+         {
+            std::cerr << "dof_map[" << i << "] = " << dof_map[i] << std::endl;
+         }
+      }
+      
 
 
       for (n = i = 0; i < NumOfElements; i++)
@@ -1032,8 +1203,10 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             }
          }
       }
-      points.Destroy();
 
+
+      //points.Destroy();
+      //
       read_gf = 0;
 
    } // else order > 2
