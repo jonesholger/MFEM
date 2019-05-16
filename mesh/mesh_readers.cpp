@@ -457,7 +457,18 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          input >> cells_data[i];
       }
    }
+#if 0
+   // Diagnostic for single cell mesh
+   for(int i = 1 ; i < cells_data.Size(); i++)
+   {
+      double x = points(3*cells_data[i]+0);
+      double y = points(3*cells_data[i]+1);
+      double z = points(3*cells_data[i]+2);
+      std::cerr << "cells_data[" << i << "] " ;
+      std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
 
+   }
+#endif
    // Read the cell types
    Dim = -1;
    int order = -1;
@@ -606,6 +617,9 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       // No boundary is defined in a VTK mesh
       NumOfBdrElements = 0;
    }
+
+// Noticed that legacy code does not work for order 2 lagrange hex,  so comment out for now   
+#if 0
    else if (order == 2)
    {
       curved = 1;
@@ -722,9 +736,10 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 
       read_gf = 0;
    } // else order == 2
-   else if (order > 2)
+#endif   
+   //else if (order > 2)
+   else // we're dropping into this section for all orders > 1 while testing lagrange cell types
    {
-      // Lagrange High-Order Cells, note that we're relying on quadratic order to be handled by legacy code
       // Also, we expect to copy some redundant code for now for the vertex gf entries
       curved = 1;
 
@@ -739,7 +754,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             if (pts_dof[v[j]] == -1)
             {
                pts_dof[v[j]] = n++;
-               std::cerr << "pts_dof[" << v[j] << "] : " << pts_dof[v[j]] << std::endl;
+               //std::cerr << "pts_dof[" << v[j] << "] : " << pts_dof[v[j]] << std::endl;
             }
       }
  
@@ -772,7 +787,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             double x = points(3*pts_dof[i]+0);
             double y = points(3*pts_dof[i]+1);
             double z = points(3*pts_dof[i]+2);
-            std::cerr << "[" << i << "] " ;
+            std::cerr << "Verts[" << i << "] " ;
             std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }    
 
@@ -810,7 +825,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       FinalizeTopology();
       finalize_topo = false;
 
-      // Define quadratic FE space
+      // Define H1 FE space
       FiniteElementCollection *fec = new H1_FECollection(order,Dim,BasisType::ClosedUniform);
       FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
       Nodes = new GridFunction(fes);
@@ -829,11 +844,138 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       }
       
       int hex_size = pow(order+1,3);
-      Array<int> vtk_hex_72(hex_size);
-      for(i=0;i<quad_size;++i)
+      Array<int> vtk_hex_72(0);
+      Array<int> verts(8), edges(10 * (order-1)), edge_br(order-1), edge_bl(order-1), 
+                 face_left(pow(order-1,2)), face_right(pow(order-1,2)), face_front(pow(order-1,2)), 
+                 face_rear(pow(order-1,2)), face_bottom(pow(order-1,2)), face_top(pow(order-1,2)), 
+                 volume(pow(order-1,3));
+
+      // We need to swap rear left and right vertical edges
+      // VTK face order left,right,front,rear,bottom,top (x l-r, y front-back, z bottom-top)
+      // MFEM face order bottom, front, right, rear, left, top
+
+      // Load vtk indices for all of the arrays
+      int nn;
+      for(nn = i = 0; i < verts.Size(); nn++, i++)
       {
-         vtk_hex_72[i] = i; // identity -- i.e. follows mfem convention
+         verts[i] = nn;
       }
+      for(i = 0; i < edges.Size(); i++, nn++)
+      {
+         edges[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "edges[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+      for(i = 0; i < edge_bl.Size(); i++, nn++)
+      {
+         edge_bl[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "edge_bl[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+      for(i = 0; i < edge_br.Size(); i++, nn++)
+      {
+         edge_br[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "edge_br[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+
+      for(i = 0; i < face_left.Size(); i++, nn++)
+      {
+         face_left[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "face_left[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+     for(i = 0; i < face_right.Size(); i++, nn++)
+      {
+         face_right[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "face_right[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+      for(i = 0; i < face_front.Size(); i++, nn++)
+      {
+         face_front[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "face_front[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+      for(i = 0; i < face_rear.Size(); i++, nn++)
+      {
+         face_rear[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "face_rear[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+      for(i = 0; i < face_bottom.Size(); i++, nn++)
+      {
+         face_bottom[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "face_bottom[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+      for(i = 0; i < face_top.Size(); i++, nn++)
+      {
+         face_top[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "face_top[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+      for(i = 0; i < volume.Size(); i++, nn++)
+      {
+         volume[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "volume[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+      }
+
+      vtk_hex_72.Append(verts);
+      vtk_hex_72.Append(edges);
+      //swap back left and right vertical edges
+      vtk_hex_72.Append(edge_br);
+      vtk_hex_72.Append(edge_bl);
+      vtk_hex_72.Append(face_bottom);
+      vtk_hex_72.Append(face_front);
+      vtk_hex_72.Append(face_right);
+      vtk_hex_72.Append(face_rear);
+      vtk_hex_72.Append(face_left);
+      vtk_hex_72.Append(face_top);
+      vtk_hex_72.Append(volume);
+
+      std::cerr << "vtk_hex_72.Size() : " << vtk_hex_72.Size() << std::endl;
+
 
       for (n = i = 0; i < NumOfElements; i++)
       {
@@ -852,7 +994,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             case Geometry::TETRAHEDRON:
                break;
             case Geometry::CUBE:
-               vtk_map = vtk_hex_72; //identity
+               vtk_map = vtk_hex_72; 
                break;
             case Geometry::PRISM:
                break;
@@ -861,6 +1003,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          }
 
          for (n++, j = 0; j < dofs.Size(); j++, n++)
+         //for (j = 0; j < dofs.Size(); j++, n++)
          {
             if (pts_dof[cells_data[n]] == -1)
             {
