@@ -553,11 +553,25 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                elem_order = std::sqrt(cells_data[j])-1;
                elements[i] = new Quadrilateral(&cells_data[j+1]);
                break;    
+            case 71: // Lagrange Tetrahedron
+               //std::cerr << "Lagrange Tetrahedron: " << cells_data[j] << std::endl;
+               elem_dim = 3;
+               elem_order = 1; // until we get machinary in place
+               elements[i] = new Tetrahedron(&cells_data[j+1]);
+               break;    
             case 72: // Lagrange hex
                //std::cerr << "Lagrange Hex: " << cells_data[j] << std::endl;
                elem_dim = 3;
                elem_order = std::cbrt(cells_data[j])-1;
                elements[i] = new Hexahedron(&cells_data[j+1]);
+               break;    
+            case 73: // Lagrange Wedge
+               //std::cerr << "Lagrange Wedge: " << cells_data[j] << std::endl;
+               elem_dim = 3;
+               elem_order = 1; // until we get machinery in place
+               elements[i] =
+                  new Wedge(cells_data[j+1], cells_data[j+2], cells_data[j+3],
+                            cells_data[j+4], cells_data[j+5], cells_data[j+6]);
                break;    
             default:
                MFEM_ABORT("VTK mesh : cell type " << ct << " is not supported!");
