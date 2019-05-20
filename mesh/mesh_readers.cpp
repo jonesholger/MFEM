@@ -469,6 +469,22 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 
    }
 #endif
+   // Use the following map to determine order given number of points for a Tet
+   std::map<int,int> tetOrderFromPoints;
+   {
+      for(int ord=1; ord <= 10; ord++)
+      {
+         int points = ((ord+1) * (ord+2) * (ord+3))/6;
+         tetOrderFromPoints[points] = ord;
+      }
+      // test map
+      //int tord = tetOrderFromPoints[35];
+      //std::cerr << "Test Order : " << tord << std::endl;
+      //tord = tetOrderFromPoints[34];
+      //std::cerr << "Test Order : " << tord << std::endl;
+      
+   }
+   
    // Read the cell types
    Dim = -1;
    int order = -1;
@@ -547,6 +563,14 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                elem_order = 2;
                elements[i] = new Hexahedron(&cells_data[j+1]);
                break;
+            // Find descriptions of the following lagrange cell types at
+            // https://github.com/Kitware/VTK/tree/265ca48a79a36538c95622c237da11133608bbe5/Common/DataModel
+            case 69: // Lagrange Triangle
+               //std::cerr << "Lagrange Triangle: " << cells_data[j] << std::endl;
+               elem_dim = 2;
+               elem_order = (std::sqrt(8*cells_data[j]+1)-3)/2;
+               elements[i] = new Triangle(&cells_data[j+1]);
+               break;    
             case 70: // Lagrange quadrilateral
                //std::cerr << "Lagrange Quadrilateral: " << cells_data[j] << std::endl;
                elem_dim = 2;
@@ -556,7 +580,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             case 71: // Lagrange Tetrahedron
                //std::cerr << "Lagrange Tetrahedron: " << cells_data[j] << std::endl;
                elem_dim = 3;
-               elem_order = 1; // until we get machinary in place
+               elem_order = tetOrderFromPoints[cells_data[j]]; 
+               MFEM_ASSERT(elem_order > 0, "Lagrange Tet parse error, invalid number of points");
                elements[i] = new Tetrahedron(&cells_data[j+1]);
                break;    
             case 72: // Lagrange hex
@@ -849,173 +874,128 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       Array<int> dofs;
 
       // setup some mappings for high order cells, similar to fixed quadratic arrays e.g. vtk_quadratic_hex;
-      Array<int> vtk_map;
+      Array<int> *vtk_map;
+
+      int tri_size =(pow((order * 2)+3,2)-1)/8;
+      Array<int> tri_map(tri_size);
+      for(i=0;i<tri_size;++i)
+      {
+         tri_map[i] = i; // identity up to order 4; error for orders > 4 until we establish map
+      }
+
+      int tet_size = (order+1) * (order+2) * (order + 3) / 6;
+      Array<int> tet_map(tet_size);
+      for(i=0; i<tet_size;++i)
+      {
+         tet_map[i] = i; // error until we establish map
+      }
+
       int quad_size = pow(order+1,2);
-      Array<int> vtk_quad_70(quad_size);
+      Array<int> quad_map(quad_size);
       for(i=0;i<quad_size;++i)
       {
-         vtk_quad_70[i] = i; // identity -- i.e. follows mfem convention
+         quad_map[i] = i; // identity -- i.e. follows mfem convention
       }
       
       int hex_size = pow(order+1,3);
-      Array<int> vtk_hex_72(0);
-      Array<int> verts(8), edges(10 * (order-1)), edge_br(order-1), edge_bl(order-1), 
-                 face_left(pow(order-1,2)), face_right(pow(order-1,2)), face_front(pow(order-1,2)), 
-                 face_rear(pow(order-1,2)), face_bottom(pow(order-1,2)), face_top(pow(order-1,2)), 
-                 volume(pow(order-1,3));
-
-      // We need to swap rear left and right vertical edges
-      // VTK face order left,right,front,rear,bottom,top (x l-r, y front-back, z bottom-top)
-      // MFEM face order bottom, front, right, rear, left, top
-
-      // Load vtk indices for all of the arrays
-      int nn;
-      for(nn = i = 0; i < verts.Size(); nn++, i++)
+      Array<int> hex_map(0);
+      Array<int> hexverts(8), hexedges(10 * (order-1)), hexedge_br(order-1), hexedge_bl(order-1), 
+                 hexface_left(pow(order-1,2)), hexface_right(pow(order-1,2)), hexface_front(pow(order-1,2)), 
+                 hexface_rear(pow(order-1,2)), hexface_bottom(pow(order-1,2)), hexface_top(pow(order-1,2)), 
+                 hexvolume(pow(order-1,3));
       {
-         verts[i] = nn;
-      }
-      for(i = 0; i < edges.Size(); i++, nn++)
-      {
-         edges[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "edges[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         // Setup Lagrange Hex cell mapping
+         // We need to swap rear left and right vertical edges
+         // VTK face order left,right,front,rear,bottom,top (x l-r, y front-back, z bottom-top)
+         // MFEM face order bottom, front, right, rear, left, top
 
-      }
-      for(i = 0; i < edge_bl.Size(); i++, nn++)
-      {
-         edge_bl[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "edge_bl[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-      }
-      for(i = 0; i < edge_br.Size(); i++, nn++)
-      {
-         edge_br[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "edge_br[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-      }
-
-      {
-         // Face left needs to be permuted via exchange top<->bottom so lower values of n correlate to lower z coords
-         for (int k=order-2; k>=0; k--)
+         // Load vtk indices for all of the arrays
+         int nn;
+         for(nn = i = 0; i < hexverts.Size(); nn++, i++)
          {
-            for(j=0;j<order-1;j++)
+            hexverts[i] = nn;
+         }
+
+         for(i = 0; i < hexedges.Size(); i++, nn++)
+         {
+            hexedges[i] = nn;
+         }
+         for(i = 0; i < hexedge_bl.Size(); i++, nn++)
+         {
+            hexedge_bl[i] = nn;
+         }
+         for(i = 0; i < hexedge_br.Size(); i++, nn++)
+         {
+            hexedge_br[i] = nn;
+         }
+
+         {
+            // Face left needs to be permuted via exchange top<->bottom so lower values of n correlate to lower z coords
+            for (int k=order-2; k>=0; k--)
             {
-               face_left[k*(order-1)+j] = nn;
-               //std::cerr << "loading face_left index: " << k*(order-1)+j << std::endl;
-               double x = points(3*cells_data[nn+1]+0);
-               double y = points(3*cells_data[nn+1]+1);
-               double z = points(3*cells_data[nn+1]+2);
-               std::cerr << "face_left[" << nn << "] " ;
-               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-               nn++;
+               for(j=0;j<order-1;j++)
+               {
+                  hexface_left[k*(order-1)+j] = nn;
+                  nn++;
+               }
             }
          }
-      }
 
-      for(i = 0; i < face_right.Size(); i++, nn++)
-      {
-         face_right[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "face_right[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-      }
-      for(i = 0; i < face_front.Size(); i++, nn++)
-      {
-         face_front[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "face_front[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-      }
-      {
-         // face rear needs to be permuted so increasing n has decreasing x; exchange left<->right
-         for(int k=0; k<order-1; k++)
+         for(i = 0; i < hexface_right.Size(); i++, nn++)
          {
-            for(j=order-2; j>=0; j--)
+            hexface_right[i] = nn;
+         }
+         for(i = 0; i < hexface_front.Size(); i++, nn++)
+         {
+            hexface_front[i] = nn;
+         }
+         {
+            // face rear needs to be permuted so increasing n has decreasing x; exchange left<->right
+            for(int k=0; k<order-1; k++)
             {
-               face_rear[k*(order-1)+j] = nn;
-               //std::cerr << "loading face_rear index: " << k*(order-1)+j << std::endl;
-               double x = points(3*cells_data[nn+1]+0);
-               double y = points(3*cells_data[nn+1]+1);
-               double z = points(3*cells_data[nn+1]+2);
-               std::cerr << "face_rear[" << nn << "] " ;
-               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-               nn++;
+               for(j=order-2; j>=0; j--)
+               {
+                  hexface_rear[k*(order-1)+j] = nn;
+                  nn++;
+               }
             }
          }
-      }
-      {
-         // face bottom needs to be permuted so increasing n has decreasing x; exchange left<->right
-         for(int k=0; k<order-1; k++)
          {
-            for(j=order-2; j>=0; j--)
+            // face bottom needs to be permuted so increasing n has decreasing x; exchange left<->right
+            for(int k=0; k<order-1; k++)
             {
-               face_bottom[k*(order-1)+j] = nn;
-               //std::cerr << "loading face_bottom index: " << k*(order-1)+j << std::endl;
-               double x = points(3*cells_data[nn+1]+0);
-               double y = points(3*cells_data[nn+1]+1);
-               double z = points(3*cells_data[nn+1]+2);
-               std::cerr << "face_bottom[" << nn << "] " ;
-               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-               nn++;
+               for(j=order-2; j>=0; j--)
+               {
+                  hexface_bottom[k*(order-1)+j] = nn;
+                  nn++;
+               }
             }
          }
-      }
-      for(i = 0; i < face_top.Size(); i++, nn++)
-      {
-         face_top[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "face_top[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-      }
-      for(i = 0; i < volume.Size(); i++, nn++)
-      {
-         volume[i] = nn;
-         double x = points(3*cells_data[nn+1]+0);
-         double y = points(3*cells_data[nn+1]+1);
-         double z = points(3*cells_data[nn+1]+2);
-         std::cerr << "volume[" << nn << "] " ;
-         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-      }
-
-      vtk_hex_72.Append(verts);
-      vtk_hex_72.Append(edges);
-      //swap back left and right vertical edges
-      vtk_hex_72.Append(edge_br);
-      vtk_hex_72.Append(edge_bl);
-      vtk_hex_72.Append(face_bottom);
-      vtk_hex_72.Append(face_front);
-      vtk_hex_72.Append(face_right);
-      vtk_hex_72.Append(face_rear);
-      vtk_hex_72.Append(face_left);
-      vtk_hex_72.Append(face_top);
-      vtk_hex_72.Append(volume);
-
-      std::cerr << "vtk_hex_72.Size() : " << vtk_hex_72.Size() << std::endl;
+         for(i = 0; i < hexface_top.Size(); i++, nn++)
+         {
+            hexface_top[i] = nn;
+         }
+         for(i = 0; i < hexvolume.Size(); i++, nn++)
+         {
+            hexvolume[i] = nn;
+         }
+         hex_map.Append(hexverts);
+         hex_map.Append(hexedges);
+         //swap back left and right vertical edges
+         hex_map.Append(hexedge_br);
+         hex_map.Append(hexedge_bl);
+         hex_map.Append(hexface_bottom);
+         hex_map.Append(hexface_front);
+         hex_map.Append(hexface_right);
+         hex_map.Append(hexface_rear);
+         hex_map.Append(hexface_left);
+         hex_map.Append(hexface_top);
+         hex_map.Append(hexvolume);
+      } // end Hex mapping code block
 
       // Diagnostic TensorBasis analog
       //
-
+#if 0
      
       {
          Array<int> dof_map;
@@ -1160,7 +1140,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          }
       }
       
-
+#endif
 
       for (n = i = 0; i < NumOfElements; i++)
       {
@@ -1173,13 +1153,17 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          std::cerr << std::endl;
          switch (elements[i]->GetGeometryType())
          {
+            case Geometry::TRIANGLE:
+               vtk_map = &tri_map; // identity map
+               break;
             case Geometry::SQUARE:
-               vtk_map = vtk_quad_70; // identity map
+               vtk_map = &quad_map; // identity map
                break;
             case Geometry::TETRAHEDRON:
+               vtk_map = &tet_map;
                break;
             case Geometry::CUBE:
-               vtk_map = vtk_hex_72; 
+               vtk_map = &hex_map; 
                break;
             case Geometry::PRISM:
                break;
@@ -1192,11 +1176,11 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          {
             if (pts_dof[cells_data[n]] == -1)
             {
-               pts_dof[cells_data[n]] = dofs[vtk_map[j]];
+               pts_dof[cells_data[n]] = dofs[(*vtk_map)[j]];
             }
             else
             {
-               if (pts_dof[cells_data[n]] != dofs[vtk_map[j]])
+               if (pts_dof[cells_data[n]] != dofs[(*vtk_map)[j]])
                {
                   MFEM_ABORT("VTK mesh : inconsistent mesh!");
                }
