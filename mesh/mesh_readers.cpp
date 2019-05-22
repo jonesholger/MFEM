@@ -782,6 +782,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       // Also, we expect to copy some redundant code for now for the vertex gf entries
       curved = 1;
 
+
+
       // generate new enumeration for the vertices; already visited vertices are ignored
       Array<int> pts_dof(np);
       pts_dof = -1;
@@ -870,6 +872,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       Nodes = new GridFunction(fes);
       Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
       own_nodes = 1;
+      std::cerr << "spaceDim = " << spaceDim << std::endl;
       // Map vtk points to edge/face/element dofs
       Array<int> dofs;
 
@@ -877,11 +880,148 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       Array<int> *vtk_map;
 
       int tri_size =(pow((order * 2)+3,2)-1)/8;
-      Array<int> tri_map(tri_size);
-      for(i=0;i<tri_size;++i)
+      Array<int> tri_map(0);
+      Array<int> triVerts(3),triEdge01(order-1), triEdge12(order-1), triEdge20(order-1), triInt(0);
       {
-         tri_map[i] = i; // identity up to order 4; error for orders > 4 until we establish map
-      }
+         int nn;
+         for(nn = i = 0; i < triVerts.Size(); nn++,i++)
+         {
+            triVerts[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "verts[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         for(i = 0; i < triEdge01.Size(); nn++, i++)
+         {
+            triEdge01[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "triEdge01[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+         for(i = 0; i < triEdge12.Size(); nn++, i++)
+         {
+            triEdge12[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "triEdge12[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+         for(i = 0; i < triEdge20.Size(); nn++, i++)
+         {
+            //triEdge20[triEdge20.Size()-1-i] = nn;
+            triEdge20[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "triEdge20[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         // In the interior vtk reports points as a lower order triangle verts then faces
+         // mfem expects lexicographic p,q order as in this order 5 unit triangle coords example
+         // [0.2,0.2]
+         // [0.4,0.2]
+         // [0.6,0.2]
+         // [0.2,0.4]
+         // [0.4,0.4]
+         // [0.2,0.6]
+         int interiorSize = tri_size - triVerts.Size() - triEdge01.Size()*3;
+         std::cerr << "Interior Size: " << interiorSize << std::endl;
+         if(interiorSize > 0)
+         {
+            // For arbitrary order we should throw coordinates into a list and sort by lexical order
+            // This currently works up to order 5
+            triInt.SetSize(interiorSize);
+            int index = 0;
+            int count = interiorSize;
+            double x,y,z;
+            while(count > 0)
+            {
+               if(count >= 6)
+               {
+                  std::cerr << "processing verts and faces in the interior low order triangle" << std::endl;
+
+                  triInt[index] = nn;
+                  triInt[index+3] = nn+1;
+                  triInt[index+1] = nn+2;
+                  triInt[index+5] = nn+3;
+                  triInt[index+4] = nn+4;
+                  triInt[index+2] = nn+5;
+
+                  std::cerr << "Reporting coords in this order" << std::endl;
+
+                  x = points(3*cells_data[nn+1]+0);
+                  y = points(3*cells_data[nn+1]+1);
+                  z = points(3*cells_data[nn+1]+2);
+                  std::cerr << "triInt[" << nn << "] " ;
+                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+                  x = points(3*cells_data[nn+3+1]+0);
+                  y = points(3*cells_data[nn+3+1]+1);
+                  z = points(3*cells_data[nn+3+1]+2);
+                  std::cerr << "triInt[" << nn+3 << "] " ;
+                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+                  x = points(3*cells_data[nn+1+1]+0);
+                  y = points(3*cells_data[nn+1+1]+1);
+                  z = points(3*cells_data[nn+1+1]+2);
+                  std::cerr << "triInt[" << nn+1 << "] " ;
+                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+                  x = points(3*cells_data[nn+5+1]+0);
+                  y = points(3*cells_data[nn+5+1]+1);
+                  z = points(3*cells_data[nn+5+1]+2);
+                  std::cerr << "triInt[" << nn+5 << "] " ;
+                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+                  x = points(3*cells_data[nn+4+1]+0);
+                  y = points(3*cells_data[nn+4+1]+1);
+                  z = points(3*cells_data[nn+4+1]+2);
+                  std::cerr << "triInt[" << nn+4 << "] " ;
+                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+
+                  x = points(3*cells_data[nn+2+1]+0);
+                  y = points(3*cells_data[nn+2+1]+1);
+                  z = points(3*cells_data[nn+2+1]+2);
+                  std::cerr << "triInt[" << nn+2 << "] " ;
+                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+                  index += 6; count-=6; nn+=6;
+               } // count >= 6
+               else if (count >= 3 && count < 6)
+               {
+                  std::cerr << "processing verts only" << std::endl;
+                  for(i = 0; i < 3; index++, nn++, count--, i++)
+                  {
+                     triInt[index] = nn;
+                     x = points(3*cells_data[nn+1]+0);
+                     y = points(3*cells_data[nn+1]+1);
+                     z = points(3*cells_data[nn+1]+2);
+                     std::cerr << "triInt[" << nn+1 << "] " ;
+                     std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+                  }
+               } // count >=3 && count < 6
+               else if (count == 1)
+               {
+                  std::cerr << "processing single interior point" << std::endl;
+                  triInt[index++] = nn++;
+                  count--;
+               }
+            } // while count > 0
+         } // if interiorSize > 0
+      } // End triangle map block
+      tri_map.Append(triVerts);
+      tri_map.Append(triEdge01);
+      tri_map.Append(triEdge12);
+      tri_map.Append(triEdge20);
+
+      tri_map.Append(triInt);
+      std::cerr << "tri_map size: " << tri_map.Size() << std::endl;
 
       int tet_size = (order+1) * (order+2) * (order + 3) / 6;
       Array<int> tet_map(tet_size);
@@ -1172,11 +1312,11 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          }
 
          for (n++, j = 0; j < dofs.Size(); j++, n++)
-         //for (j = 0; j < dofs.Size(); j++, n++)
          {
             if (pts_dof[cells_data[n]] == -1)
             {
                pts_dof[cells_data[n]] = dofs[(*vtk_map)[j]];
+               std::cerr << "pts_dof[" << cells_data[n] << "] = dofs[" <<(*vtk_map)[j] << "]" << std::endl;
             }
             else
             {
@@ -1198,6 +1338,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             for (j = 0; j < dofs.Size(); j++)
             {
                (*Nodes)(dofs[j]) = points(3*i+j);
+               std::cerr << "*Nodes(" << dofs[j]  << ") = " <<points(3*i+j) << std::endl;
             }
          }
       }
