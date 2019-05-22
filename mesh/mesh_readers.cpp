@@ -15,6 +15,8 @@
 
 #include <iostream>
 #include <cstdio>
+#include <vector>
+#include <algorithm>
 
 #ifdef MFEM_USE_NETCDF
 #include "netcdf.h"
@@ -881,7 +883,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 
       int tri_size =(pow((order * 2)+3,2)-1)/8;
       Array<int> tri_map(0);
-      Array<int> triVerts(3),triEdge01(order-1), triEdge12(order-1), triEdge20(order-1), triInt(0);
+      Array<int> triVerts(3),triEdges(3 * (order-1)), triInt(0);
       {
          int nn;
          for(nn = i = 0; i < triVerts.Size(); nn++,i++)
@@ -894,34 +896,16 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
 
-         for(i = 0; i < triEdge01.Size(); nn++, i++)
+         for(i = 0; i < triEdges.Size(); nn++, i++)
          {
-            triEdge01[i] = nn;
+            triEdges[i] = nn;
             double x = points(3*cells_data[nn+1]+0);
             double y = points(3*cells_data[nn+1]+1);
             double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "triEdge01[" << nn << "] " ;
+            std::cerr << "triEdges[" << nn << "] " ;
             std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
-         for(i = 0; i < triEdge12.Size(); nn++, i++)
-         {
-            triEdge12[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "triEdge12[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-         for(i = 0; i < triEdge20.Size(); nn++, i++)
-         {
-            //triEdge20[triEdge20.Size()-1-i] = nn;
-            triEdge20[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "triEdge20[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
+
 
          // In the interior vtk reports points as a lower order triangle verts then faces
          // mfem expects lexicographic p,q order as in this order 5 unit triangle coords example
@@ -931,95 +915,50 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          // [0.2,0.4]
          // [0.4,0.4]
          // [0.2,0.6]
-         int interiorSize = tri_size - triVerts.Size() - triEdge01.Size()*3;
+         int interiorSize = tri_size - triVerts.Size() - triEdges.Size();
          std::cerr << "Interior Size: " << interiorSize << std::endl;
          if(interiorSize > 0)
          {
-            // For arbitrary order we should throw coordinates into a list and sort by lexical order
-            // This currently works up to order 5
+            // For arbitrary order we throw coordinates in vtk order into a list and sort by lexical order
             triInt.SetSize(interiorSize);
-            int index = 0;
-            int count = interiorSize;
-            double x,y,z;
-            while(count > 0)
+
+            struct ValueAtIndex
             {
-               if(count >= 6)
+               int index;
+               double value;
+            };
+
+            struct {
+               bool operator() (ValueAtIndex a, ValueAtIndex b) const
                {
-                  std::cerr << "processing verts and faces in the interior low order triangle" << std::endl;
-
-                  triInt[index] = nn;
-                  triInt[index+3] = nn+1;
-                  triInt[index+1] = nn+2;
-                  triInt[index+5] = nn+3;
-                  triInt[index+4] = nn+4;
-                  triInt[index+2] = nn+5;
-
-                  std::cerr << "Reporting coords in this order" << std::endl;
-
-                  x = points(3*cells_data[nn+1]+0);
-                  y = points(3*cells_data[nn+1]+1);
-                  z = points(3*cells_data[nn+1]+2);
-                  std::cerr << "triInt[" << nn << "] " ;
-                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-                  x = points(3*cells_data[nn+3+1]+0);
-                  y = points(3*cells_data[nn+3+1]+1);
-                  z = points(3*cells_data[nn+3+1]+2);
-                  std::cerr << "triInt[" << nn+3 << "] " ;
-                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-                  x = points(3*cells_data[nn+1+1]+0);
-                  y = points(3*cells_data[nn+1+1]+1);
-                  z = points(3*cells_data[nn+1+1]+2);
-                  std::cerr << "triInt[" << nn+1 << "] " ;
-                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-                  x = points(3*cells_data[nn+5+1]+0);
-                  y = points(3*cells_data[nn+5+1]+1);
-                  z = points(3*cells_data[nn+5+1]+2);
-                  std::cerr << "triInt[" << nn+5 << "] " ;
-                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-                  x = points(3*cells_data[nn+4+1]+0);
-                  y = points(3*cells_data[nn+4+1]+1);
-                  z = points(3*cells_data[nn+4+1]+2);
-                  std::cerr << "triInt[" << nn+4 << "] " ;
-                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-
-                  x = points(3*cells_data[nn+2+1]+0);
-                  y = points(3*cells_data[nn+2+1]+1);
-                  z = points(3*cells_data[nn+2+1]+2);
-                  std::cerr << "triInt[" << nn+2 << "] " ;
-                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-                  index += 6; count-=6; nn+=6;
-               } // count >= 6
-               else if (count >= 3 && count < 6)
-               {
-                  std::cerr << "processing verts only" << std::endl;
-                  for(i = 0; i < 3; index++, nn++, count--, i++)
-                  {
-                     triInt[index] = nn;
-                     x = points(3*cells_data[nn+1]+0);
-                     y = points(3*cells_data[nn+1]+1);
-                     z = points(3*cells_data[nn+1]+2);
-                     std::cerr << "triInt[" << nn+1 << "] " ;
-                     std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-                  }
-               } // count >=3 && count < 6
-               else if (count == 1)
-               {
-                  std::cerr << "processing single interior point" << std::endl;
-                  triInt[index++] = nn++;
-                  count--;
+                  return a.value < b.value;
                }
-            } // while count > 0
+            } CompareFunction;
+
+            std::vector<ValueAtIndex> v;
+
+            int save_nn = nn;
+
+            for(i=0; i < triInt.Size(); nn++,i++)
+            {
+               double x = points(3*cells_data[nn+1]+0);
+               double y = points(3*cells_data[nn+1]+1);
+               double ptValue = x + (y * 1e5);
+               v.push_back({i,ptValue});
+            }
+
+            std::sort(v.begin(), v.end(), CompareFunction);
+
+            nn=save_nn;
+            for(i=0; i < triInt.Size(); nn++,i++)
+            {
+               triInt[v[i].index] = nn;
+            }
+
          } // if interiorSize > 0
       } // End triangle map block
       tri_map.Append(triVerts);
-      tri_map.Append(triEdge01);
-      tri_map.Append(triEdge12);
-      tri_map.Append(triEdge20);
-
+      tri_map.Append(triEdges);
       tri_map.Append(triInt);
       std::cerr << "tri_map size: " << tri_map.Size() << std::endl;
 

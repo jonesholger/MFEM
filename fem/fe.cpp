@@ -7665,14 +7665,17 @@ H1_TriangleElement::H1_TriangleElement(const int p, const int btype)
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(o++).Set2(cp[i], cp[0]);
+      std::cerr << "H1 Triangle edge 0->1 [" << cp[i] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(o++).Set2(cp[p-i], cp[i]);
+         std::cerr << "H1 Triangle edge 1->2 [" << cp[p-i] << "," << cp[i] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(o++).Set2(cp[0], cp[p-i]);
+         std::cerr << "H1 Triangle edge 2->0 [" << cp[0] << "," << cp[p-i] << "]" << std::endl;
    }
 
    // interior
@@ -7680,6 +7683,7 @@ H1_TriangleElement::H1_TriangleElement(const int p, const int btype)
       for (int i = 1; i + j < p; i++)
       {
          const double w = cp[i] + cp[j] + cp[p-i-j];
+         std::cerr << "H1 Triangle interior coords [" << cp[i]/w << "," << cp[j]/w << "]" << std::endl;
          Nodes.IntPoint(o++).Set2(cp[i]/w, cp[j]/w);
       }
 
