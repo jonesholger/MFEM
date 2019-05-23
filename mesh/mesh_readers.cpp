@@ -374,6 +374,336 @@ const int Mesh::vtk_quadratic_hex[27] =
    24, 22, 21, 23, 20, 25, 26
 };
 
+void Mesh::GenVtkQuadMap(Array<int> &quad_map, const int order)
+{
+
+   int quad_size = pow(order+1,2);
+   quad_map.SetSize(quad_size);
+
+   for(int i=0;i<quad_size;++i)
+   {
+      quad_map[i] = i; // identity -- i.e. follows mfem convention
+   }
+   
+}
+
+void Mesh::GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const Vector &points, const int order)
+{
+
+   int hex_size = pow(order+1,3);
+
+   Array<int> hexverts(8), hexedges(10 * (order-1)), hexedge_br(order-1), hexedge_bl(order-1), 
+               hexface_left(pow(order-1,2)), hexface_right(pow(order-1,2)), hexface_front(pow(order-1,2)), 
+               hexface_rear(pow(order-1,2)), hexface_bottom(pow(order-1,2)), hexface_top(pow(order-1,2)), 
+               hexvolume(pow(order-1,3));
+   
+   // Setup Lagrange Hex cell mapping
+   // We need to swap rear left and right vertical edges
+   // VTK face order left,right,front,rear,bottom,top (x l-r, y front-back, z bottom-top)
+   // MFEM face order bottom, front, right, rear, left, top
+
+   // Load vtk indices for all of the arrays
+   int nn,i;
+   for(nn = i = 0; i < hexverts.Size(); nn++, i++)
+   {
+      hexverts[i] = nn;
+   }
+
+   for(i = 0; i < hexedges.Size(); i++, nn++)
+   {
+      hexedges[i] = nn;
+   }
+   for(i = 0; i < hexedge_bl.Size(); i++, nn++)
+   {
+      hexedge_bl[i] = nn;
+   }
+   for(i = 0; i < hexedge_br.Size(); i++, nn++)
+   {
+      hexedge_br[i] = nn;
+   }
+
+   {
+      // Face left needs to be permuted via exchange top<->bottom so lower values of n correlate to lower z coords
+      for (int k=order-2; k>=0; k--)
+      {
+         for(int j=0;j<order-1;j++)
+         {
+            hexface_left[k*(order-1)+j] = nn;
+            nn++;
+         }
+      }
+   }
+
+   for(i = 0; i < hexface_right.Size(); i++, nn++)
+   {
+      hexface_right[i] = nn;
+   }
+   for(i = 0; i < hexface_front.Size(); i++, nn++)
+   {
+      hexface_front[i] = nn;
+   }
+   {
+      // face rear needs to be permuted so increasing n has decreasing x; exchange left<->right
+      for(int k=0; k<order-1; k++)
+      {
+         for(int j=order-2; j>=0; j--)
+         {
+            hexface_rear[k*(order-1)+j] = nn;
+            nn++;
+         }
+      }
+   }
+   {
+      // face bottom needs to be permuted so increasing n has decreasing x; exchange left<->right
+      for(int k=0; k<order-1; k++)
+      {
+         for(int j=order-2; j>=0; j--)
+         {
+            hexface_bottom[k*(order-1)+j] = nn;
+            nn++;
+         }
+      }
+   }
+   for(i = 0; i < hexface_top.Size(); i++, nn++)
+   {
+      hexface_top[i] = nn;
+   }
+   for(i = 0; i < hexvolume.Size(); i++, nn++)
+   {
+      hexvolume[i] = nn;
+   }
+   hex_map.Append(hexverts);
+   hex_map.Append(hexedges);
+   //swap back left and right vertical edges
+   hex_map.Append(hexedge_br);
+   hex_map.Append(hexedge_bl);
+   hex_map.Append(hexface_bottom);
+   hex_map.Append(hexface_front);
+   hex_map.Append(hexface_right);
+   hex_map.Append(hexface_rear);
+   hex_map.Append(hexface_left);
+   hex_map.Append(hexface_top);
+   hex_map.Append(hexvolume);
+}
+
+
+void Mesh::GenVtkTriMap(Array<int> &tri_map, const Array<int> &cells_data, const Vector &points, const int order )
+{
+
+
+   int tri_size =(pow((order * 2)+3,2)-1)/8;
+
+   Array<int> triVerts(3),triEdges(3 * (order-1)), triInt(0);
+   {
+      int nn,i;
+      for(nn = i = 0; i < triVerts.Size(); nn++,i++)
+      {
+         triVerts[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         //std::cerr << "verts[" << nn << "] " ;
+         //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i = 0; i < triEdges.Size(); nn++, i++)
+      {
+         triEdges[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         //std::cerr << "triEdges[" << nn << "] " ;
+         //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+
+      // In the interior vtk reports points as a lower order triangle verts then faces
+      // mfem expects lexicographic p,q order as in this order 5 unit triangle coords example
+      // [0.2,0.2]
+      // [0.4,0.2]
+      // [0.6,0.2]
+      // [0.2,0.4]
+      // [0.4,0.4]
+      // [0.2,0.6]
+      int interiorSize = tri_size - triVerts.Size() - triEdges.Size();
+      //std::cerr << "Interior Size: " << interiorSize << std::endl;
+      if(interiorSize > 0)
+      {
+         // For arbitrary order we throw coordinates in vtk order into a list and sort by lexical order
+         triInt.SetSize(interiorSize);
+
+         struct ValueAtIndex
+         {
+            int index;
+            double value;
+         };
+
+         struct {
+            bool operator() (ValueAtIndex a, ValueAtIndex b) const
+            {
+               return a.value < b.value;
+            }
+         } CompareFunction;
+
+         std::vector<ValueAtIndex> v;
+
+         int save_nn = nn;
+
+         for(i=0; i < triInt.Size(); nn++,i++)
+         {
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double ptValue = x + (y * 1e5);
+            v.push_back({i,ptValue});
+         }
+
+         std::sort(v.begin(), v.end(), CompareFunction);
+
+         nn=save_nn;
+         for(i=0; i < triInt.Size(); nn++,i++)
+         {
+            triInt[v[i].index] = nn;
+         }
+
+      } // if interiorSize > 0
+   } // End triangle map block
+   tri_map.Append(triVerts);
+   tri_map.Append(triEdges);
+   tri_map.Append(triInt);
+   //std::cerr << "tri_map size: " << tri_map.Size() << std::endl;
+
+}
+
+void Mesh::GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order)
+{
+
+   int tet_size = (order+1) * (order+2) * (order + 3) / 6;
+   Array<int> tetVerts(4), tetEdges(0), tetFaces(0), tetInt(0);
+   Array<int> tetEdge01(order-1),tetEdge02(order-1),tetEdge03(order-1);
+   Array<int> tetEdge12(order-1),tetEdge13(order-1),tetEdge23(order-1);
+   {
+      int nn,i;
+      for(i=0, nn=0; i<tetVerts.Size();i++,nn++)
+      {
+         tetVerts[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetVerts[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i=0; i< tetEdge01.Size(); i++, nn++)
+      {
+         tetEdge01[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge01[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+      for(i=0; i< tetEdge12.Size(); i++, nn++)
+      {
+         //int p = tetEdge12.Size();
+         //tetEdge12[p-1-i] = nn;
+         tetEdge12[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge12[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+      // edge02 should decrease x with increasing n
+      for(i=0; i< tetEdge02.Size(); i++, nn++)
+      {
+         int p = tetEdge02.Size();
+         tetEdge02[p-1-i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge02[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i=0; i< tetEdge03.Size(); i++, nn++)
+      {
+         //int p = tetEdge03.Size();
+         // tetEdge03[p-1-i] = nn;
+         tetEdge03[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge03[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i=0; i< tetEdge13.Size(); i++, nn++)
+      {
+         tetEdge13[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge13[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i=0; i< tetEdge23.Size(); i++, nn++)
+      {
+         tetEdge23[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge23[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+      // we need to permute some edges 
+      tetEdges.Append(tetEdge01);
+      tetEdges.Append(tetEdge03);
+      tetEdges.Append(tetEdge12);
+      tetEdges.Append(tetEdge02);
+      tetEdges.Append(tetEdge13);
+      tetEdges.Append(tetEdge23);
+
+      if(order > 2)
+      {
+         tetFaces.SetSize(4 * (order-2));
+         std::cerr << "tetFaces size: " << tetFaces.Size() << std::endl;
+         for(i = 0; i< tetFaces.Size(); i++,nn++)
+         {
+            tetFaces[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetFaces[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+      }
+
+      int interiorSize = tet_size - tetVerts.Size() - tetEdges.Size() - tetFaces.Size();
+
+      if(interiorSize > 0)
+      {
+         tetInt.SetSize(interiorSize);
+         std::cerr << "tetInt size: " << tetInt.Size() << std::endl;
+         for(i=0 ; i < tetInt.Size(); i++, nn++)
+         {
+            tetInt[i] = nn; // error until we get map sorted
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetInt[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+      }
+   } // tet map block
+   tet_map.Append(tetVerts);
+   tet_map.Append(tetEdges);
+   tet_map.Append(tetFaces);
+   tet_map.Append(tetInt);   
+   std::cerr << "tet_map size: " << tet_map.Size() << std::endl;   
+
+}
+
 void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                        bool &finalize_topo)
 {
@@ -878,318 +1208,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       // Map vtk points to edge/face/element dofs
       Array<int> dofs;
 
-      // setup some mappings for high order cells, similar to fixed quadratic arrays e.g. vtk_quadratic_hex;
-      Array<int> *vtk_map;
-
-      int tri_size =(pow((order * 2)+3,2)-1)/8;
-      Array<int> tri_map(0);
-      Array<int> triVerts(3),triEdges(3 * (order-1)), triInt(0);
-      {
-         int nn;
-         for(nn = i = 0; i < triVerts.Size(); nn++,i++)
-         {
-            triVerts[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            //std::cerr << "verts[" << nn << "] " ;
-            //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-
-         for(i = 0; i < triEdges.Size(); nn++, i++)
-         {
-            triEdges[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            //std::cerr << "triEdges[" << nn << "] " ;
-            //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
 
 
-         // In the interior vtk reports points as a lower order triangle verts then faces
-         // mfem expects lexicographic p,q order as in this order 5 unit triangle coords example
-         // [0.2,0.2]
-         // [0.4,0.2]
-         // [0.6,0.2]
-         // [0.2,0.4]
-         // [0.4,0.4]
-         // [0.2,0.6]
-         int interiorSize = tri_size - triVerts.Size() - triEdges.Size();
-         //std::cerr << "Interior Size: " << interiorSize << std::endl;
-         if(interiorSize > 0)
-         {
-            // For arbitrary order we throw coordinates in vtk order into a list and sort by lexical order
-            triInt.SetSize(interiorSize);
-
-            struct ValueAtIndex
-            {
-               int index;
-               double value;
-            };
-
-            struct {
-               bool operator() (ValueAtIndex a, ValueAtIndex b) const
-               {
-                  return a.value < b.value;
-               }
-            } CompareFunction;
-
-            std::vector<ValueAtIndex> v;
-
-            int save_nn = nn;
-
-            for(i=0; i < triInt.Size(); nn++,i++)
-            {
-               double x = points(3*cells_data[nn+1]+0);
-               double y = points(3*cells_data[nn+1]+1);
-               double ptValue = x + (y * 1e5);
-               v.push_back({i,ptValue});
-            }
-
-            std::sort(v.begin(), v.end(), CompareFunction);
-
-            nn=save_nn;
-            for(i=0; i < triInt.Size(); nn++,i++)
-            {
-               triInt[v[i].index] = nn;
-            }
-
-         } // if interiorSize > 0
-      } // End triangle map block
-      tri_map.Append(triVerts);
-      tri_map.Append(triEdges);
-      tri_map.Append(triInt);
-      //std::cerr << "tri_map size: " << tri_map.Size() << std::endl;
-
-      int tet_size = (order+1) * (order+2) * (order + 3) / 6;
-      Array<int> tet_map(0);
-      Array<int> tetVerts(4), tetEdges(0), tetFaces(0), tetInt(0);
-      Array<int> tetEdge01(order-1),tetEdge02(order-1),tetEdge03(order-1);
-      Array<int> tetEdge12(order-1),tetEdge13(order-1),tetEdge23(order-1);
-      {
-         int nn;
-         for(i=0, nn=0; i<tetVerts.Size();i++,nn++)
-         {
-            tetVerts[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "tetVerts[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-
-         for(i=0; i< tetEdge01.Size(); i++, nn++)
-         {
-            tetEdge01[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "tetEdge01[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-         for(i=0; i< tetEdge12.Size(); i++, nn++)
-         {
-            //int p = tetEdge12.Size();
-            //tetEdge12[p-1-i] = nn;
-            tetEdge12[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "tetEdge12[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-         // edge02 should decrease x with increasing n
-         for(i=0; i< tetEdge02.Size(); i++, nn++)
-         {
-            int p = tetEdge02.Size();
-            tetEdge02[p-1-i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "tetEdge02[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-
-         for(i=0; i< tetEdge03.Size(); i++, nn++)
-         {
-            //int p = tetEdge03.Size();
-            // tetEdge03[p-1-i] = nn;
-            tetEdge03[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "tetEdge03[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-
-         for(i=0; i< tetEdge13.Size(); i++, nn++)
-         {
-            tetEdge13[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "tetEdge13[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-
-         for(i=0; i< tetEdge23.Size(); i++, nn++)
-         {
-            tetEdge23[i] = nn;
-            double x = points(3*cells_data[nn+1]+0);
-            double y = points(3*cells_data[nn+1]+1);
-            double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "tetEdge23[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-        // we need to permute some edges 
-         tetEdges.Append(tetEdge01);
-         tetEdges.Append(tetEdge03);
-         tetEdges.Append(tetEdge12);
-         tetEdges.Append(tetEdge02);
-         tetEdges.Append(tetEdge13);
-         tetEdges.Append(tetEdge23);
-
-         if(order > 2)
-         {
-            tetFaces.SetSize(4 * (order-2));
-            std::cerr << "tetFaces size: " << tetFaces.Size() << std::endl;
-            for(i = 0; i< tetFaces.Size(); i++,nn++)
-            {
-               tetFaces[i] = nn;
-               double x = points(3*cells_data[nn+1]+0);
-               double y = points(3*cells_data[nn+1]+1);
-               double z = points(3*cells_data[nn+1]+2);
-               std::cerr << "tetFaces[" << nn << "] " ;
-               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-            }
-         }
-
-         int interiorSize = tet_size - tetVerts.Size() - tetEdges.Size() - tetFaces.Size();
-
-         if(interiorSize > 0)
-         {
-            tetInt.SetSize(interiorSize);
-            std::cerr << "tetInt size: " << tetInt.Size() << std::endl;
-            for(i=0 ; i < tetInt.Size(); i++, nn++)
-            {
-               tetInt[i] = nn; // error until we get map sorted
-               double x = points(3*cells_data[nn+1]+0);
-               double y = points(3*cells_data[nn+1]+1);
-               double z = points(3*cells_data[nn+1]+2);
-               std::cerr << "tetInt[" << nn << "] " ;
-               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-            }
-         }
-      } // tet map block
-      tet_map.Append(tetVerts);
-      tet_map.Append(tetEdges);
-      tet_map.Append(tetFaces);
-      tet_map.Append(tetInt);   
-      std::cerr << "tet_map size: " << tet_map.Size() << std::endl;   
-
-      int quad_size = pow(order+1,2);
-      Array<int> quad_map(quad_size);
-      for(i=0;i<quad_size;++i)
-      {
-         quad_map[i] = i; // identity -- i.e. follows mfem convention
-      }
-      
-      int hex_size = pow(order+1,3);
-      Array<int> hex_map(0);
-      Array<int> hexverts(8), hexedges(10 * (order-1)), hexedge_br(order-1), hexedge_bl(order-1), 
-                 hexface_left(pow(order-1,2)), hexface_right(pow(order-1,2)), hexface_front(pow(order-1,2)), 
-                 hexface_rear(pow(order-1,2)), hexface_bottom(pow(order-1,2)), hexface_top(pow(order-1,2)), 
-                 hexvolume(pow(order-1,3));
-      {
-         // Setup Lagrange Hex cell mapping
-         // We need to swap rear left and right vertical edges
-         // VTK face order left,right,front,rear,bottom,top (x l-r, y front-back, z bottom-top)
-         // MFEM face order bottom, front, right, rear, left, top
-
-         // Load vtk indices for all of the arrays
-         int nn;
-         for(nn = i = 0; i < hexverts.Size(); nn++, i++)
-         {
-            hexverts[i] = nn;
-         }
-
-         for(i = 0; i < hexedges.Size(); i++, nn++)
-         {
-            hexedges[i] = nn;
-         }
-         for(i = 0; i < hexedge_bl.Size(); i++, nn++)
-         {
-            hexedge_bl[i] = nn;
-         }
-         for(i = 0; i < hexedge_br.Size(); i++, nn++)
-         {
-            hexedge_br[i] = nn;
-         }
-
-         {
-            // Face left needs to be permuted via exchange top<->bottom so lower values of n correlate to lower z coords
-            for (int k=order-2; k>=0; k--)
-            {
-               for(j=0;j<order-1;j++)
-               {
-                  hexface_left[k*(order-1)+j] = nn;
-                  nn++;
-               }
-            }
-         }
-
-         for(i = 0; i < hexface_right.Size(); i++, nn++)
-         {
-            hexface_right[i] = nn;
-         }
-         for(i = 0; i < hexface_front.Size(); i++, nn++)
-         {
-            hexface_front[i] = nn;
-         }
-         {
-            // face rear needs to be permuted so increasing n has decreasing x; exchange left<->right
-            for(int k=0; k<order-1; k++)
-            {
-               for(j=order-2; j>=0; j--)
-               {
-                  hexface_rear[k*(order-1)+j] = nn;
-                  nn++;
-               }
-            }
-         }
-         {
-            // face bottom needs to be permuted so increasing n has decreasing x; exchange left<->right
-            for(int k=0; k<order-1; k++)
-            {
-               for(j=order-2; j>=0; j--)
-               {
-                  hexface_bottom[k*(order-1)+j] = nn;
-                  nn++;
-               }
-            }
-         }
-         for(i = 0; i < hexface_top.Size(); i++, nn++)
-         {
-            hexface_top[i] = nn;
-         }
-         for(i = 0; i < hexvolume.Size(); i++, nn++)
-         {
-            hexvolume[i] = nn;
-         }
-         hex_map.Append(hexverts);
-         hex_map.Append(hexedges);
-         //swap back left and right vertical edges
-         hex_map.Append(hexedge_br);
-         hex_map.Append(hexedge_bl);
-         hex_map.Append(hexface_bottom);
-         hex_map.Append(hexface_front);
-         hex_map.Append(hexface_right);
-         hex_map.Append(hexface_rear);
-         hex_map.Append(hexface_left);
-         hex_map.Append(hexface_top);
-         hex_map.Append(hexvolume);
-      } // end Hex mapping code block
 
       // Diagnostic TensorBasis analog
       //
@@ -1340,6 +1360,21 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       
 #endif
 
+      // setup some mappings for high order cells, similar to fixed quadratic arrays e.g. vtk_quadratic_hex;
+      Array<int> *vtk_map;
+
+      Array<int> tri_map(0);
+      bool triMapInitialized = false;
+
+      Array<int> quad_map(0);
+      bool quadMapInitialized = false;
+
+      Array<int> hex_map(0);
+      bool hexMapInitialized = false;
+
+      Array<int> tet_map(0);
+      bool tetMapInitialized = false;
+
       for (n = i = 0; i < NumOfElements; i++)
       {
          fes->GetElementDofs(i, dofs);
@@ -1352,15 +1387,35 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          switch (elements[i]->GetGeometryType())
          {
             case Geometry::TRIANGLE:
-               vtk_map = &tri_map; // identity map
+               if(! triMapInitialized)
+               {
+                  GenVtkTriMap(tri_map, cells_data, points, order);
+                  triMapInitialized = true;
+               }
+               vtk_map = &tri_map; 
                break;
             case Geometry::SQUARE:
-               vtk_map = &quad_map; // identity map
+               if(! quadMapInitialized)
+               {
+                  GenVtkQuadMap(quad_map, order);
+                  quadMapInitialized = true;               
+               }
+               vtk_map = &quad_map; 
                break;
             case Geometry::TETRAHEDRON:
+               if(! tetMapInitialized)
+               {
+                  GenVtkTetMap(tet_map, cells_data, points, order);
+                  tetMapInitialized = true;
+               }
                vtk_map = &tet_map;
                break;
             case Geometry::CUBE:
+               if(! hexMapInitialized)
+               {
+                  GenVtkHexMap(hex_map, cells_data, points, order);
+                  hexMapInitialized = true;
+               }
                vtk_map = &hex_map; 
                break;
             case Geometry::PRISM:
