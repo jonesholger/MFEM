@@ -892,8 +892,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             double x = points(3*cells_data[nn+1]+0);
             double y = points(3*cells_data[nn+1]+1);
             double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "verts[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+            //std::cerr << "verts[" << nn << "] " ;
+            //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
 
          for(i = 0; i < triEdges.Size(); nn++, i++)
@@ -902,8 +902,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             double x = points(3*cells_data[nn+1]+0);
             double y = points(3*cells_data[nn+1]+1);
             double z = points(3*cells_data[nn+1]+2);
-            std::cerr << "triEdges[" << nn << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+            //std::cerr << "triEdges[" << nn << "] " ;
+            //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
 
 
@@ -916,7 +916,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          // [0.4,0.4]
          // [0.2,0.6]
          int interiorSize = tri_size - triVerts.Size() - triEdges.Size();
-         std::cerr << "Interior Size: " << interiorSize << std::endl;
+         //std::cerr << "Interior Size: " << interiorSize << std::endl;
          if(interiorSize > 0)
          {
             // For arbitrary order we throw coordinates in vtk order into a list and sort by lexical order
@@ -960,14 +960,133 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       tri_map.Append(triVerts);
       tri_map.Append(triEdges);
       tri_map.Append(triInt);
-      std::cerr << "tri_map size: " << tri_map.Size() << std::endl;
+      //std::cerr << "tri_map size: " << tri_map.Size() << std::endl;
 
       int tet_size = (order+1) * (order+2) * (order + 3) / 6;
-      Array<int> tet_map(tet_size);
-      for(i=0; i<tet_size;++i)
+      Array<int> tet_map(0);
+      Array<int> tetVerts(4), tetEdges(0), tetFaces(0), tetInt(0);
+      Array<int> tetEdge01(order-1),tetEdge02(order-1),tetEdge03(order-1);
+      Array<int> tetEdge12(order-1),tetEdge13(order-1),tetEdge23(order-1);
       {
-         tet_map[i] = i; // error until we establish map
-      }
+         int nn;
+         for(i=0, nn=0; i<tetVerts.Size();i++,nn++)
+         {
+            tetVerts[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetVerts[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         for(i=0; i< tetEdge01.Size(); i++, nn++)
+         {
+            tetEdge01[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetEdge01[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+         for(i=0; i< tetEdge12.Size(); i++, nn++)
+         {
+            //int p = tetEdge12.Size();
+            //tetEdge12[p-1-i] = nn;
+            tetEdge12[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetEdge12[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+         // edge02 should decrease x with increasing n
+         for(i=0; i< tetEdge02.Size(); i++, nn++)
+         {
+            int p = tetEdge02.Size();
+            tetEdge02[p-1-i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetEdge02[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         for(i=0; i< tetEdge03.Size(); i++, nn++)
+         {
+            //int p = tetEdge03.Size();
+            // tetEdge03[p-1-i] = nn;
+            tetEdge03[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetEdge03[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         for(i=0; i< tetEdge13.Size(); i++, nn++)
+         {
+            tetEdge13[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetEdge13[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         for(i=0; i< tetEdge23.Size(); i++, nn++)
+         {
+            tetEdge23[i] = nn;
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetEdge23[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+        // we need to permute some edges 
+         tetEdges.Append(tetEdge01);
+         tetEdges.Append(tetEdge03);
+         tetEdges.Append(tetEdge12);
+         tetEdges.Append(tetEdge02);
+         tetEdges.Append(tetEdge13);
+         tetEdges.Append(tetEdge23);
+
+         if(order > 2)
+         {
+            tetFaces.SetSize(4 * (order-2));
+            std::cerr << "tetFaces size: " << tetFaces.Size() << std::endl;
+            for(i = 0; i< tetFaces.Size(); i++,nn++)
+            {
+               tetFaces[i] = nn;
+               double x = points(3*cells_data[nn+1]+0);
+               double y = points(3*cells_data[nn+1]+1);
+               double z = points(3*cells_data[nn+1]+2);
+               std::cerr << "tetFaces[" << nn << "] " ;
+               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+            }
+         }
+
+         int interiorSize = tet_size - tetVerts.Size() - tetEdges.Size() - tetFaces.Size();
+
+         if(interiorSize > 0)
+         {
+            tetInt.SetSize(interiorSize);
+            std::cerr << "tetInt size: " << tetInt.Size() << std::endl;
+            for(i=0 ; i < tetInt.Size(); i++, nn++)
+            {
+               tetInt[i] = nn; // error until we get map sorted
+               double x = points(3*cells_data[nn+1]+0);
+               double y = points(3*cells_data[nn+1]+1);
+               double z = points(3*cells_data[nn+1]+2);
+               std::cerr << "tetInt[" << nn << "] " ;
+               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+            }
+         }
+      } // tet map block
+      tet_map.Append(tetVerts);
+      tet_map.Append(tetEdges);
+      tet_map.Append(tetFaces);
+      tet_map.Append(tetInt);   
+      std::cerr << "tet_map size: " << tet_map.Size() << std::endl;   
 
       int quad_size = pow(order+1,2);
       Array<int> quad_map(quad_size);
@@ -1255,13 +1374,23 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             if (pts_dof[cells_data[n]] == -1)
             {
                pts_dof[cells_data[n]] = dofs[(*vtk_map)[j]];
-               std::cerr << "pts_dof[" << cells_data[n] << "] = dofs[" <<(*vtk_map)[j] << "]" << std::endl;
+               std::cerr << "pts_dof[" << cells_data[n] << "] = dofs[" <<(*vtk_map)[j] << "] at point:" ;
+               double x = points(3*cells_data[(*vtk_map)[j]+1]+0);
+               double y = points(3*cells_data[(*vtk_map)[j]+1]+1);
+               double z = points(3*cells_data[(*vtk_map)[j]+1]+2);
+               std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
             }
             else
             {
                if (pts_dof[cells_data[n]] != dofs[(*vtk_map)[j]])
                {
-                  MFEM_ABORT("VTK mesh : inconsistent mesh!");
+                  std::cerr << "Error pts_dof[" << cells_data[n] << "] = dofs[" <<(*vtk_map)[j] << "] at point:" ;
+                  double x = points(3*cells_data[n]+0);
+                  double y = points(3*cells_data[n]+1);
+                  double z = points(3*cells_data[n]+2);
+                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+                  std::cerr << pts_dof[cells_data[n]] << " != " << dofs[(*vtk_map)[j]] << std::endl;
+                  //MFEM_ABORT("VTK mesh : inconsistent mesh!");
                }
             }
          }

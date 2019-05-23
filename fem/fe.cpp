@@ -7665,17 +7665,17 @@ H1_TriangleElement::H1_TriangleElement(const int p, const int btype)
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(o++).Set2(cp[i], cp[0]);
-      std::cerr << "H1 Triangle edge 0->1 [" << cp[i] << "," << cp[0] << "]" << std::endl;
+      //std::cerr << "H1 Triangle edge 0->1 [" << cp[i] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(o++).Set2(cp[p-i], cp[i]);
-         std::cerr << "H1 Triangle edge 1->2 [" << cp[p-i] << "," << cp[i] << "]" << std::endl;
+         //std::cerr << "H1 Triangle edge 1->2 [" << cp[p-i] << "," << cp[i] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(o++).Set2(cp[0], cp[p-i]);
-         std::cerr << "H1 Triangle edge 2->0 [" << cp[0] << "," << cp[p-i] << "]" << std::endl;
+         //std::cerr << "H1 Triangle edge 2->0 [" << cp[0] << "," << cp[p-i] << "]" << std::endl;
    }
 
    // interior
@@ -7683,7 +7683,7 @@ H1_TriangleElement::H1_TriangleElement(const int p, const int btype)
       for (int i = 1; i + j < p; i++)
       {
          const double w = cp[i] + cp[j] + cp[p-i-j];
-         std::cerr << "H1 Triangle interior coords [" << cp[i]/w << "," << cp[j]/w << "]" << std::endl;
+         //std::cerr << "H1 Triangle interior coords [" << cp[i]/w << "," << cp[j]/w << "]" << std::endl;
          Nodes.IntPoint(o++).Set2(cp[i]/w, cp[j]/w);
       }
 
@@ -7828,26 +7828,32 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int btype)
    for (int i = 1; i < p; i++)  // (0,1)
    {
       Nodes.IntPoint(o++).Set3(cp[i], cp[0], cp[0]);
+      std::cerr << "H1 Tet edge 0->1 [" << cp[i] << "," << cp[0] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (0,2)
    {
       Nodes.IntPoint(o++).Set3(cp[0], cp[i], cp[0]);
+      std::cerr << "H1 Tet edge 0->2 [" << cp[0] << "," << cp[i] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (0,3)
    {
       Nodes.IntPoint(o++).Set3(cp[0], cp[0], cp[i]);
+      std::cerr << "H1 Tet edge 0->3 [" << cp[0] << "," << cp[0] << "," << cp[i] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (1,2)
    {
       Nodes.IntPoint(o++).Set3(cp[p-i], cp[i], cp[0]);
+      std::cerr << "H1 Tet edge 1->2 [" << cp[p-i] << "," << cp[i] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (1,3)
    {
       Nodes.IntPoint(o++).Set3(cp[p-i], cp[0], cp[i]);
+      std::cerr << "H1 Tet edge 1->3 [" << cp[p-i] << "," << cp[0] << "," << cp[i] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (2,3)
    {
       Nodes.IntPoint(o++).Set3(cp[0], cp[p-i], cp[i]);
+      std::cerr << "H1 Tet edge 2->3 [" << cp[0] << "," << cp[p-i] << "," << cp[i] << "]" << std::endl;
    }
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
