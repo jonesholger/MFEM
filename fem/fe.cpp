@@ -7862,24 +7862,28 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int btype)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[p-i-j]/w, cp[i]/w, cp[j]/w);
+         std::cerr << "H1 Tet face (1,2,3) [" << cp[p-i-j]/w << "," << cp[i]/w << "," << cp[j]/w << "]" << std::endl;
       }
    for (int j = 1; j < p; j++)
       for (int i = 1; i + j < p; i++)  // (0,3,2)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[0], cp[j]/w, cp[i]/w);
+         std::cerr << "H1 Tet face (0,3,2) [" << cp[0] << "," << cp[j]/w << "," << cp[i]/w << "]" << std::endl;
       }
    for (int j = 1; j < p; j++)
       for (int i = 1; i + j < p; i++)  // (0,1,3)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[i]/w, cp[0], cp[j]/w);
+         std::cerr << "H1 Tet face (0,1,3) [" << cp[i]/w << "," << cp[0] << "," << cp[j]/w << "]" << std::endl;
       }
    for (int j = 1; j < p; j++)
       for (int i = 1; i + j < p; i++)  // (0,2,1)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[j]/w, cp[i]/w, cp[0]);
+         std::cerr << "H1 Tet face (0,2,1) [" << cp[j]/w << "," << cp[i]/w << "," << cp[0] << "]" << std::endl;
       }
 
    // interior
@@ -7889,6 +7893,7 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int btype)
          {
             double w = cp[i] + cp[j] + cp[k] + cp[p-i-j-k];
             Nodes.IntPoint(o++).Set3(cp[i]/w, cp[j]/w, cp[k]/w);
+            std::cerr << "H1 Tet Vol [" << cp[i]/w << "," << cp[j]/w << "," << cp[k]/w << "]" << std::endl;
          }
 
    DenseMatrix T(Dof);
