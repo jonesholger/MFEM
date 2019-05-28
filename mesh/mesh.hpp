@@ -207,6 +207,7 @@ protected:
    void ReadNetgen2DMesh(std::istream &input, int &curved);
    void ReadNetgen3DMesh(std::istream &input);
    void ReadTrueGridMesh(std::istream &input);
+   void GenVtkSortedPerm(Array<int> &perm, double wx, double wy, double wz, int offset, const Array<int> &cells_data, const Vector &points);
    void GenVtkQuadMap(Array<int> &quad_map, const int order);
    void GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const Vector &points, const int order);
    void GenVtkTriMap(Array<int> &tri_map, const Array<int> &cells_data, const Vector &points, const int order);
