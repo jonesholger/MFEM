@@ -683,39 +683,62 @@ void Mesh::GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const
          int faceSize = (pow(((order-3) * 2)+3,2)-1)/8; // same as triangle logic, but starting at order 3
          std::cerr << "faceSize : " << faceSize << std::endl;
          Array<int> tetFaceA(faceSize), tetFaceB(faceSize), tetFaceC(faceSize), tetFaceD(faceSize);
+         // Faces requires sorted permutation, the data used to generate the permutation may
+         // live at a different offset, due to an opaque internal transformation. 
+         // Use the generated grid function as final arbiter while
+         // diagnosing actions of the following logic.
 
          int save_nn = nn;
          // MFEM 123
+
+         Array<int>perm(faceSize);
+         int offset = nn + 1 + 1*faceSize;
+         GenVtkSortedPerm(perm, -1e2, 1e4, 1e6, offset, cells_data, points);
          for(i = 0; i < tetFaceA.Size(); i++, nn++)
          {
-            tetFaceA[i] = nn;
-
-            //double x = points(3*cells_data[nn+1]+0);
-            //double y = points(3*cells_data[nn+1]+1);
-            //double z = points(3*cells_data[nn+1]+2);
-            //std::cerr << "FaceA[" << nn << "] " ;
+            tetFaceA[perm[i]] = nn;
+            //double x = points(3*cells_data[offset+i]+0);
+            //double y = points(3*cells_data[offset+i]+1);
+            //double z = points(3*cells_data[offset+i]+2);
+            //std::cerr << "FaceA[" << offset << "] " ;
             //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
-         // Hand correct for testing
-         //tetFaceA[0] = 23;
-         //tetFaceA[1] = 24;
-         //tetFaceA[2] = 22;
-
 
          // MFEM 032
+         offset = nn + 1 + 1*faceSize ;
+         GenVtkSortedPerm(perm, 0, 1e4, 1, offset, cells_data, points);
          for(i = 0; i < tetFaceB.Size(); i++, nn++)
          {
-            tetFaceB[i] = nn ;
+            tetFaceB[perm[i]] = nn ;
+            //double x = points(3*cells_data[offset+i]+0);
+            //double y = points(3*cells_data[offset+i]+1);
+            //double z = points(3*cells_data[offset+i]+2);
+            //std::cerr << "FaceB[" << offset << "] " ;
+            //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
          //MFEM 013
+         offset = nn + 1 + -2*faceSize ;
+         GenVtkSortedPerm(perm, 1, 0, 1e3, offset, cells_data, points);
          for(i = 0; i < tetFaceC.Size(); i++, nn++)
          {
-            tetFaceC[i] = nn;
+            tetFaceC[perm[i]] = nn;
+            //double x = points(3*cells_data[offset+i]+0);
+            //double y = points(3*cells_data[offset+i]+1);
+            //double z = points(3*cells_data[offset+i]+2);
+            //std::cerr << "FaceC[" << offset << "] " ;
+            //std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
          // MFEM 021
+         offset = nn + 1;
+         GenVtkSortedPerm(perm, 1e3, 1, 0, offset, cells_data, points);
          for(i = 0; i < tetFaceD.Size(); i++, nn++)
          {
-            tetFaceD[i] = nn;
+            tetFaceD[perm[i]] = nn;
+            double x = points(3*cells_data[offset+i]+0);
+            double y = points(3*cells_data[offset+i]+1);
+            double z = points(3*cells_data[offset+i]+2);
+            std::cerr << "FaceD[" << offset << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
 
          tetFaces.Append(tetFaceC); // MFEM Face013
