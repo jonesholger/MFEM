@@ -374,6 +374,89 @@ const int Mesh::vtk_quadratic_hex[27] =
    24, 22, 21, 23, 20, 25, 26
 };
 
+const int Mesh::vtk_wedge_o3[40] =
+{
+   0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,35,34,37,36,38,39
+};
+
+const int Mesh::vtk_wedge_o4[75] =
+{
+   0, // 0
+   1, // 1
+   2, // 2
+   3, // 3
+   4, // 4
+   5, // 5
+   6, // 6
+   7, // 7
+   8, // 8
+   9, // 9
+   10, // 10
+   11, // 11
+   12, // 12
+   13, // 13
+   14, // 14
+   15, // 15
+   16, // 16
+   17, // 17
+   18, // 18
+   19, // 19
+   20, // 20
+   21, // 21
+   22, // 22
+   23, // 23
+   24, // 24
+   25, // 25
+   26, // 26
+   27, // 27
+   28, // 28
+   29, // 29
+   30, // 30
+   31, // 31
+   32, // 32
+   33, // 33
+   35, // 34
+   34, // 35
+   36, // 36
+   37, // 37
+   38, // 38
+   39, // 39
+   40, // 40
+   41, // 41
+   42, // 42
+   43, // 43
+   44, // 44
+   45, // 45
+   46, // 46
+   47, // 47
+   48, // 48
+   49, // 49
+   50, // 50
+   51, // 51
+   52, // 52
+   53, // 53
+   54, // 54
+   55, // 55
+   56, // 56
+   59, // 57
+   58, // 58
+   57, // 59
+   62, // 60
+   61, // 61
+   60, // 62
+   65, // 63
+   64, // 64
+   63, // 65
+   66, // 66
+   67, // 67
+   68, // 68
+   69, // 69
+   70, // 70
+   71, // 71
+   72, // 72
+   73, // 73
+   74  // 74
+};
 void Mesh::GenVtkSortedPerm(Array<int> &perm, const double wx, const double wy, const double wz, const int offset, const Array<int> &cells_data, const Vector &points)
 {
    struct ValueAtIndex
@@ -436,7 +519,6 @@ void Mesh::GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const
    // VTK face order left,right,front,rear,bottom,top (x l-r, y front-back, z bottom-top)
    // MFEM face order bottom, front, right, rear, left, top
 
-   // Load vtk indices for all of the arrays
    int nn,i;
    for(nn = i = 0; i < hexverts.Size(); nn++, i++)
    {
@@ -784,6 +866,18 @@ void Mesh::GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const
 
 }
 
+
+void Mesh::GenVtkWedgeMap(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order)
+{
+   int wedge_size = ((order+1) * (order+2))/2 * (order+1);
+   wedge_map.SetSize(wedge_size);
+
+   for(int i=0; i < wedge_size; ++i)
+   {
+      wedge_map[i] = i; 
+   }
+}
+
 void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                        bool &finalize_topo)
 {
@@ -794,6 +888,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
    //   * https://www.kitware.com/products/books/VTKUsersGuide.pdf
 
    int i, j, n, attr;
+   bool legacyElem=false, lagrangeElem=false;
 
    string buff;
    getline(input, buff); // comment line
@@ -890,12 +985,16 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          int points = ((ord+1) * (ord+2) * (ord+3))/6;
          tetOrderFromPoints[points] = ord;
       }
-      // test map
-      //int tord = tetOrderFromPoints[35];
-      //std::cerr << "Test Order : " << tord << std::endl;
-      //tord = tetOrderFromPoints[34];
-      //std::cerr << "Test Order : " << tord << std::endl;
-      
+   }
+
+   // Similarly for a wedge
+   std::map<int,int> wedgeOrderFromPoints;
+   {
+      for(int ord=1; ord <= 10; ord++)
+      {
+         int points = ((ord+1) * (ord+2))/2 * (ord+1);
+         wedgeOrderFromPoints[points] = ord;
+      }
    }
    
    // Read the cell types
@@ -906,6 +1005,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
    {
       input >> NumOfElements;
       elements.SetSize(NumOfElements);
+
       for (j = i = 0; i < NumOfElements; i++)
       {
          int ct, elem_dim, elem_order = 1;
@@ -915,10 +1015,12 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             case 5:   // triangle
                elem_dim = 2;
                elements[i] = new Triangle(&cells_data[j+1]);
+               legacyElem = true;
                break;
             case 9:   // quadrilateral
                elem_dim = 2;
                elements[i] = new Quadrilateral(&cells_data[j+1]);
+               legacyElem = true;
                break;
             case 10:  // tetrahedron
                elem_dim = 3;
@@ -928,10 +1030,12 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 #else
                elements[i] = new Tetrahedron(&cells_data[j+1]);
 #endif
+               legacyElem = true;
                break;
             case 12:  // hexahedron
                elem_dim = 3;
                elements[i] = new Hexahedron(&cells_data[j+1]);
+               legacyElem = true;
                break;
             case 13:  // wedge
                elem_dim = 3;
@@ -940,17 +1044,20 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                elements[i] =
                   new Wedge(cells_data[j+1], cells_data[j+3], cells_data[j+2],
                             cells_data[j+4], cells_data[j+6], cells_data[j+5]);
+               legacyElem = true;
                break;
 
             case 22:  // quadratic triangle
                elem_dim = 2;
                elem_order = 2;
                elements[i] = new Triangle(&cells_data[j+1]);
+               legacyElem = true;
                break;
             case 28:  // biquadratic quadrilateral
                elem_dim = 2;
                elem_order = 2;
                elements[i] = new Quadrilateral(&cells_data[j+1]);
+               legacyElem = true;
                break;
             case 24:  // quadratic tetrahedron
                elem_dim = 3;
@@ -961,6 +1068,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 #else
                elements[i] = new Tetrahedron(&cells_data[j+1]);
 #endif
+               legacyElem = true;
                break;
             case 32: // biquadratic-quadratic wedge
                elem_dim = 3;
@@ -970,11 +1078,13 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                elements[i] =
                   new Wedge(cells_data[j+1], cells_data[j+3], cells_data[j+2],
                             cells_data[j+4], cells_data[j+6], cells_data[j+5]);
+               legacyElem = true;
                break;
             case 29:  // triquadratic hexahedron
                elem_dim = 3;
                elem_order = 2;
                elements[i] = new Hexahedron(&cells_data[j+1]);
+               legacyElem = true;
                break;
             // Find descriptions of the following lagrange cell types at
             // https://github.com/Kitware/VTK/tree/265ca48a79a36538c95622c237da11133608bbe5/Common/DataModel
@@ -983,33 +1093,38 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                elem_dim = 2;
                elem_order = (std::sqrt(8*cells_data[j]+1)-3)/2;
                elements[i] = new Triangle(&cells_data[j+1]);
+               lagrangeElem = true;
                break;    
             case 70: // Lagrange quadrilateral
                //std::cerr << "Lagrange Quadrilateral: " << cells_data[j] << std::endl;
                elem_dim = 2;
                elem_order = std::sqrt(cells_data[j])-1;
                elements[i] = new Quadrilateral(&cells_data[j+1]);
+               lagrangeElem = true;
                break;    
             case 71: // Lagrange Tetrahedron
                //std::cerr << "Lagrange Tetrahedron: " << cells_data[j] << std::endl;
                elem_dim = 3;
                elem_order = tetOrderFromPoints[cells_data[j]]; 
-               MFEM_ASSERT(elem_order > 0, "Lagrange Tet parse error, invalid number of points");
                elements[i] = new Tetrahedron(&cells_data[j+1]);
+               lagrangeElem = true;
                break;    
             case 72: // Lagrange hex
                //std::cerr << "Lagrange Hex: " << cells_data[j] << std::endl;
                elem_dim = 3;
                elem_order = std::cbrt(cells_data[j])-1;
                elements[i] = new Hexahedron(&cells_data[j+1]);
+               lagrangeElem = true;
                break;    
             case 73: // Lagrange Wedge
-               //std::cerr << "Lagrange Wedge: " << cells_data[j] << std::endl;
+               std::cerr << "Lagrange Wedge: " << cells_data[j] << std::endl;
                elem_dim = 3;
-               elem_order = 1; // until we get machinery in place
+               elem_order = wedgeOrderFromPoints[cells_data[j]];
+               std::cerr << "elem_order : " << elem_order << std::endl;
                elements[i] =
                   new Wedge(cells_data[j+1], cells_data[j+2], cells_data[j+3],
                             cells_data[j+4], cells_data[j+5], cells_data[j+6]);
+               lagrangeElem = true;
                break;    
             default:
                MFEM_ABORT("VTK mesh : cell type " << ct << " is not supported!");
@@ -1019,6 +1134,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      "elements with different dimensions are not supported");
          MFEM_VERIFY(order == -1 || order == elem_order,
                      "elements with different orders are not supported");
+         MFEM_VERIFY(legacyElem != lagrangeElem,
+                     "Mixing of Legacy and Lagrange Cell Types is not supported");
          Dim = elem_dim;
          order = elem_order;
          j += cells_data[j] + 1;
@@ -1070,9 +1187,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       NumOfBdrElements = 0;
    }
 
-// Noticed that legacy code does not work for order 2 lagrange hex,  so comment out for now   
-#if 0
-   else if (order == 2)
+   else if (order >= 2) // The following section of code is shared for legacy quadratic and the lagrange high order
    {
       curved = 1;
 
@@ -1089,6 +1204,28 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                pts_dof[v[j]] = n++;
             }
       }
+
+      // The following loop reorders pts_dofs so vertices are visited in canonical order 
+      //  lowest r,s,t paramter to highest
+      //  verify by printing coords 
+      // e.g. for 3x3 unit quads here is the order [index] = [x,y,z]
+      // [0] = [0,0,0]
+      // [1] = [1,0,0]
+      // [2] = [2,0,0]
+      // [3] = [3,0,0]
+      // [4] = [0,1,0]
+      // [5] = [1,1,0]
+      // [6] = [2,1,0]
+      // [7] = [3,1,0]
+      // [8] = [0,2,0]
+      // [9] = [1,2,0]
+      // [10] = [2,2,0]
+      // [11] = [3,2,0]
+      // [12] = [0,3,0]
+      // [13] = [1,3,0]
+      // [14] = [2,3,0]
+      // [15] = [3,3,0]
+
       // keep the original ordering of the vertices
       for (n = i = 0; i < np; i++)
          if (pts_dof[i] != -1)
@@ -1121,306 +1258,234 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       // No boundary is defined in a VTK mesh
       NumOfBdrElements = 0;
 
-      // Generate faces and edges so that we can define quadratic
+      // Generate faces and edges so that we can define 
       // FE space on the mesh
       FinalizeTopology();
       finalize_topo = false;
 
-      // Define quadratic FE space
-      FiniteElementCollection *fec = new QuadraticFECollection;
-      FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
-      Nodes = new GridFunction(fes);
-      Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
-      own_nodes = 1;
-
-      // Map vtk points to edge/face/element dofs
-      Array<int> dofs;
-      for (n = i = 0; i < NumOfElements; i++)
+      if(legacyElem)
       {
-         fes->GetElementDofs(i, dofs);
-         const int *vtk_mfem;         
-         switch (elements[i]->GetGeometryType())
-         {
-            case Geometry::TRIANGLE:
-            case Geometry::SQUARE:
-               vtk_mfem = vtk_quadratic_hex; break; // identity map
-            case Geometry::TETRAHEDRON:
-               vtk_mfem = vtk_quadratic_tet; break;
-            case Geometry::CUBE:
-               vtk_mfem = vtk_quadratic_hex; break;
-            case Geometry::PRISM:
-               vtk_mfem = vtk_quadratic_wedge; break;
-            default:
-               vtk_mfem = NULL; // suppress a warning
-               break;
-         }
+         // Define quadratic FE space
+         FiniteElementCollection *fec = new QuadraticFECollection;
+         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+         Nodes = new GridFunction(fes);
+         Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
+         own_nodes = 1;
 
-         for (n++, j = 0; j < dofs.Size(); j++, n++)
+         // Map vtk points to edge/face/element dofs
+         Array<int> dofs;
+         for (n = i = 0; i < NumOfElements; i++)
          {
-            if (pts_dof[cells_data[n]] == -1)
+            fes->GetElementDofs(i, dofs);
+            const int *vtk_mfem;         
+            switch (elements[i]->GetGeometryType())
             {
-               pts_dof[cells_data[n]] = dofs[vtk_mfem[j]];
+               case Geometry::TRIANGLE:
+               case Geometry::SQUARE:
+                  vtk_mfem = vtk_quadratic_hex; break; // identity map
+               case Geometry::TETRAHEDRON:
+                  vtk_mfem = vtk_quadratic_tet; break;
+               case Geometry::CUBE:
+                  vtk_mfem = vtk_quadratic_hex; break;
+               case Geometry::PRISM:
+                  vtk_mfem = vtk_quadratic_wedge; break;
+               default:
+                  vtk_mfem = NULL; // suppress a warning
+                  break;
             }
-            else
+
+            for (n++, j = 0; j < dofs.Size(); j++, n++)
             {
-               if (pts_dof[cells_data[n]] != dofs[vtk_mfem[j]])
+               if (pts_dof[cells_data[n]] == -1)
                {
-                  MFEM_ABORT("VTK mesh : inconsistent quadratic mesh!");
+                  pts_dof[cells_data[n]] = dofs[vtk_mfem[j]];
+               }
+               else
+               {
+                  if (pts_dof[cells_data[n]] != dofs[vtk_mfem[j]])
+                  {
+                     MFEM_ABORT("VTK mesh : inconsistent quadratic mesh!");
+                  }
                }
             }
          }
-      }
 
-      // Define the 'Nodes' from the 'points' through the 'pts_dof' map
-      for (i = 0; i < np; i++)
-      {
-         dofs.SetSize(1);
-         if ((dofs[0] = pts_dof[i]) != -1)
+         // Define the 'Nodes' from the 'points' through the 'pts_dof' map
+         for (i = 0; i < np; i++)
          {
-            fes->DofsToVDofs(dofs);
-            for (j = 0; j < dofs.Size(); j++)
+            dofs.SetSize(1);
+            if ((dofs[0] = pts_dof[i]) != -1)
             {
-               (*Nodes)(dofs[j]) = points(3*i+j);
-            }
-         }
-      }
-      points.Destroy();
-
-      read_gf = 0;
-   } // else order == 2
-#endif   
-   //else if (order > 2)
-   else // we're dropping into this section for all orders > 1 while testing lagrange cell types
-   {
-      // Also, we expect to copy some redundant code for now for the vertex gf entries
-      curved = 1;
-
-
-
-      // generate new enumeration for the vertices; already visited vertices are ignored
-      Array<int> pts_dof(np);
-      pts_dof = -1;
-      for (n = i = 0; i < NumOfElements; i++)
-      {
-         int *v = elements[i]->GetVertices();
-         int nv = elements[i]->GetNVertices();
-         for (j = 0; j < nv; j++)
-            if (pts_dof[v[j]] == -1)
-            {
-               pts_dof[v[j]] = n++;
-               //std::cerr << "pts_dof[" << v[j] << "] : " << pts_dof[v[j]] << std::endl;
-            }
-      }
- 
-      // The following loop reorders pts_dofs so vertices are visited in canonical order 
-      //  lowest r,s,t paramter to highest
-      //  verify by printing coords 
-      // e.g. for 3x3 unit quads here is the order [index] = [x,y,z]
-      // [0] = [0,0,0]
-      // [1] = [1,0,0]
-      // [2] = [2,0,0]
-      // [3] = [3,0,0]
-      // [4] = [0,1,0]
-      // [5] = [1,1,0]
-      // [6] = [2,1,0]
-      // [7] = [3,1,0]
-      // [8] = [0,2,0]
-      // [9] = [1,2,0]
-      // [10] = [2,2,0]
-      // [11] = [3,2,0]
-      // [12] = [0,3,0]
-      // [13] = [1,3,0]
-      // [14] = [2,3,0]
-      // [15] = [3,3,0]
-
-      for (n = i = 0; i < np; i++)
-         if (pts_dof[i] != -1)
-         {
-            int orig = pts_dof[i];
-            pts_dof[i] = n++;
-
-         }    
-
-      // update the element vertices
-      // This loop seems redundant for simple meshes, see if we can find a counter to the redundancy later
-      for (i = 0; i < NumOfElements; i++)
-      {
-         int *v = elements[i]->GetVertices();
-         int nv = elements[i]->GetNVertices();
-         for (j = 0; j < nv; j++)
-         {  
-            int origV  = v[j];
-            v[j] = pts_dof[v[j]];
-            //std::cerr << "orig: " << origV << " new: " << v[j] << std::endl;
-         }
-      }
-      // Define the 'vertices' from the 'points' through the 'pts_dof' map
-      NumOfVertices = n;
-      vertices.SetSize(n);
-      for (i = 0; i < np; i++)
-      {
-         if ((j = pts_dof[i]) != -1)
-         {
-            vertices[j](0) = points(3*i+0);
-            vertices[j](1) = points(3*i+1);
-            vertices[j](2) = points(3*i+2);
-            double x = points(3*i+0);
-            double y = points(3*i+1);
-            double z = points(3*i+2);
-            std::cerr << "Verts[" << i << "] " ;
-            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-         }
-      }
-
-      // No boundary is defined in a VTK mesh
-      NumOfBdrElements = 0;
-
-      // Generate faces and edges so that we can define quadratic
-      // FE space on the mesh
-      FinalizeTopology();
-      finalize_topo = false;
-
-      // Define H1 FE space
-      FiniteElementCollection *fec = new H1_FECollection(order,Dim,BasisType::ClosedUniform);
-      FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
-      Nodes = new GridFunction(fes);
-      Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
-      own_nodes = 1;
-      std::cerr << "spaceDim = " << spaceDim << std::endl;
-      // Map vtk points to edge/face/element dofs
-      Array<int> dofs;
-
-      // setup some mappings for high order cells, similar to fixed quadratic arrays e.g. vtk_quadratic_hex;
-      Array<int> *vtk_map;
-
-      Array<int> tri_map(0);
-      bool triMapInitialized = false;
-
-      Array<int> quad_map(0);
-      bool quadMapInitialized = false;
-
-      Array<int> hex_map(0);
-      bool hexMapInitialized = false;
-
-      Array<int> tet_map(0);
-      bool tetMapInitialized = false;
-
-      for (n = i = 0; i < NumOfElements; i++)
-      {
-         fes->GetElementDofs(i, dofs);
-         std::cerr << "GetElementDofs[" << dofs.Size() << "] :";
-         for(int di=0; di < dofs.Size(); ++di)
-         {
-            cerr << " " << dofs[di];
-         }
-         std::cerr << std::endl;
-         switch (elements[i]->GetGeometryType())
-         {
-            case Geometry::TRIANGLE:
-               if(! triMapInitialized)
+               fes->DofsToVDofs(dofs);
+               for (j = 0; j < dofs.Size(); j++)
                {
-                  GenVtkTriMap(tri_map, cells_data, points, order);
-                  triMapInitialized = true;
-               }
-               vtk_map = &tri_map; 
-               break;
-            case Geometry::SQUARE:
-               if(! quadMapInitialized)
-               {
-                  GenVtkQuadMap(quad_map, order);
-                  quadMapInitialized = true;               
-               }
-               vtk_map = &quad_map; 
-               break;
-            case Geometry::TETRAHEDRON:
-               if(! tetMapInitialized)
-               {
-                  GenVtkTetMap(tet_map, cells_data, points, order);
-                  tetMapInitialized = true;
-               }
-               vtk_map = &tet_map;
-               break;
-            case Geometry::CUBE:
-               if(! hexMapInitialized)
-               {
-                  GenVtkHexMap(hex_map, cells_data, points, order);
-                  hexMapInitialized = true;
-               }
-               vtk_map = &hex_map; 
-               break;
-            case Geometry::PRISM:
-               break;
-            default:
-               break;
-         }
-
-         for (n++, j = 0; j < dofs.Size(); j++, n++)
-         {
-            if (pts_dof[cells_data[n]] == -1)
-            {
-               pts_dof[cells_data[n]] = dofs[(*vtk_map)[j]];
-               std::cerr << "pts_dof[" << cells_data[n] << "] = dofs[" <<(*vtk_map)[j] << "] = " << dofs[(*vtk_map)[j]] << " at point: " << n ;
-               double x = points(3*cells_data[n]+0);
-               double y = points(3*cells_data[n]+1);
-               double z = points(3*cells_data[n]+2);
-               std::cerr << " = [" << x << "," << y << "," << z << "]" << std::endl;
-            }
-            else
-            {
-               if (pts_dof[cells_data[n]] != dofs[(*vtk_map)[j]])
-               {
-                  std::cerr << "Error pts_dof[" << cells_data[n] << "] = dofs[" <<(*vtk_map)[j] << "] at point:" ;
-                  double x = points(3*cells_data[n]+0);
-                  double y = points(3*cells_data[n]+1);
-                  double z = points(3*cells_data[n]+2);
-                  std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
-                  std::cerr << pts_dof[cells_data[n]] << " != " << dofs[(*vtk_map)[j]] << std::endl;
-                  //MFEM_ABORT("VTK mesh : inconsistent mesh!");
+                  (*Nodes)(dofs[j]) = points(3*i+j);
                }
             }
          }
-      } // for NumOfElements
+         points.Destroy();
 
-      // Define the 'Nodes' from the 'points' through the 'pts_dof' map
-      for (i = 0; i < np; i++)
+         read_gf = 0;
+      }
+      else if(lagrangeElem)
       {
-         dofs.SetSize(1);
-         if ((dofs[0] = pts_dof[i]) != -1)
+         // Define H1 FE space
+         FiniteElementCollection *fec = new H1_FECollection(order,Dim,BasisType::ClosedUniform);
+         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+         Nodes = new GridFunction(fes);
+         Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
+         own_nodes = 1;
+         std::cerr << "spaceDim = " << spaceDim << std::endl;
+         // Map vtk points to edge/face/element dofs
+         Array<int> dofs;
+
+         // setup some mappings for high order cells, similar to fixed quadratic arrays e.g. vtk_quadratic_hex;
+         Array<int> *vtk_map;
+
+         Array<int> tri_map(0);
+         bool triMapInitialized = false;
+
+         Array<int> quad_map(0);
+         bool quadMapInitialized = false;
+
+         Array<int> hex_map(0);
+         bool hexMapInitialized = false;
+
+         Array<int> tet_map(0);
+         bool tetMapInitialized = false;
+
+         Array<int> wedge_map(0);
+         bool wedgeMapInitialized = false;
+
+
+         for (n = i = 0; i < NumOfElements; i++)
          {
-            fes->DofsToVDofs(dofs);
-            for (j = 0; j < dofs.Size(); j++)
+            fes->GetElementDofs(i, dofs);
+            std::cerr << "GetElementDofs[" << dofs.Size() << "] :";
+            for(int di=0; di < dofs.Size(); ++di)
             {
-               (*Nodes)(dofs[j]) = points(3*i+j);
-               //std::cerr << "*Nodes(" << dofs[j]  << ") = " <<points(3*i+j) << std::endl;
+               cerr << " " << dofs[di];
             }
-            //std::cerr << std::endl;
-         }
-      }
-      
-      // quick diagnostic to view dofs for spaceDim 
-      int count = (*Nodes).Size()/spaceDim;
-      for (i = 0; i < count; i++)
-      {
-         double x = (*Nodes).Elem(i);
-         double y = 0;
-         double z = 0;
-         if(spaceDim > 1)
-         {
-            y = (*Nodes).Elem(i+count);
-         }
-         if(spaceDim > 2)
-         {
-            z = (*Nodes).Elem(i+(count*2));
-         }
-         std::cerr << "Dof[" << i << "] = [" << x << "," << y << "," << z << "]" << std::endl;
-      }
+            std::cerr << std::endl;
+            switch (elements[i]->GetGeometryType())
+            {
+               case Geometry::TRIANGLE:
+                  if(! triMapInitialized)
+                  {
+                     GenVtkTriMap(tri_map, cells_data, points, order);
+                     triMapInitialized = true;
+                  }
+                  vtk_map = &tri_map; 
+                  break;
+               case Geometry::SQUARE:
+                  if(! quadMapInitialized)
+                  {
+                     GenVtkQuadMap(quad_map, order);
+                     quadMapInitialized = true;               
+                  }
+                  vtk_map = &quad_map; 
+                  break;
+               case Geometry::TETRAHEDRON:
+                  if(! tetMapInitialized)
+                  {
+                     GenVtkTetMap(tet_map, cells_data, points, order);
+                     tetMapInitialized = true;
+                  }
+                  vtk_map = &tet_map;
+                  break;
+               case Geometry::CUBE:
+                  if(! hexMapInitialized)
+                  {
+                     GenVtkHexMap(hex_map, cells_data, points, order);
+                     hexMapInitialized = true;
+                  }
+                  vtk_map = &hex_map; 
+                  break;
+               case Geometry::PRISM:
+                  {
+                     int wsize = ((order+1) * (order+2))/2 * (order+1);
+                     if(! wedgeMapInitialized)
+                     {
+                        if(order == 1 || order == 2 || order == 5 || order == 6)
+                        {
+                           GenVtkWedgeMap(wedge_map, cells_data, points, order);
+                        }
+                        else if(order == 3)
+                        {
+                           wedge_map.SetSize(wsize);
+                           for(int i=0; i < wsize; i++) wedge_map[i] = vtk_wedge_o3[i];  
+                        }
+                        else if(order == 4)
+                        {
+                           wedge_map.SetSize(wsize);
+                           for(int i=0; i < wsize; i++) wedge_map[i] = vtk_wedge_o4[i];  
+                        }
+                        wedgeMapInitialized = true;
+                     }
+                  }
+                  vtk_map = &wedge_map; 
+                  break;
+               default:
+                  MFEM_ABORT("VTK mesh : Unsupported Cell Type Encountered!");
+                  break;
+            } // switch elements geometry type
 
-      //points.Destroy();
-      //
-      read_gf = 0;
+            for (n++, j = 0; j < dofs.Size(); j++, n++)
+            {
+               if (pts_dof[cells_data[n]] == -1)
+               {
+                  pts_dof[cells_data[n]] = dofs[(*vtk_map)[j]];
+               }
+               else
+               {
+                  if (pts_dof[cells_data[n]] != dofs[(*vtk_map)[j]])
+                  {
+                     MFEM_ABORT("VTK mesh : inconsistent mesh!");
+                  }
+               }
+            }
+         } // for NumOfElements
 
-   } // else order > 2
-}
+         // Define the 'Nodes' from the 'points' through the 'pts_dof' map
+         for (i = 0; i < np; i++)
+         {
+            dofs.SetSize(1);
+            if ((dofs[0] = pts_dof[i]) != -1)
+            {
+               fes->DofsToVDofs(dofs);
+               for (j = 0; j < dofs.Size(); j++)
+               {
+                  (*Nodes)(dofs[j]) = points(3*i+j);
+                  //std::cerr << "*Nodes(" << dofs[j]  << ") = " <<points(3*i+j) << std::endl;
+               }
+               //std::cerr << std::endl;
+            }
+         }
+         
+         // quick diagnostic to view dofs for spaceDim 
+         int count = (*Nodes).Size()/spaceDim;
+         for (i = 0; i < count; i++)
+         {
+            double x = (*Nodes).Elem(i);
+            double y = 0;
+            double z = 0;
+            if(spaceDim > 1)
+            {
+               y = (*Nodes).Elem(i+count);
+            }
+            if(spaceDim > 2)
+            {
+               z = (*Nodes).Elem(i+(count*2));
+            }
+            std::cerr << "Dof[" << i << "] = [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         points.Destroy();
+         //
+         read_gf = 0;
+      } // else if(lagrangeElem)
+   } // else order >= 2
+} // end ReadVTKMesh
 
 void Mesh::ReadNURBSMesh(std::istream &input, int &curved, int &read_gf)
 {

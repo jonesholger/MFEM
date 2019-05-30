@@ -154,6 +154,11 @@ protected:
    static const int vtk_quadratic_wedge[18];
    static const int vtk_quadratic_hex[27];
 
+   static const int vtk_wedge_o3[40];
+   static const int vtk_wedge_o4[75];
+   //static const int vtk_wedge_o5[40];
+   //static const int vtk_wedge_o6[40];
+
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
    MemAlloc <Tetrahedron, 1024> TetMemory;
@@ -212,6 +217,7 @@ protected:
    void GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const Vector &points, const int order);
    void GenVtkTriMap(Array<int> &tri_map, const Array<int> &cells_data, const Vector &points, const int order);
    void GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order);
+   void GenVtkWedgeMap(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order);
    void ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                     bool &finalize_topo);
    void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
