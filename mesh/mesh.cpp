@@ -20,6 +20,7 @@
 #include <sstream>
 #include <fstream>
 #include <limits>
+#include <float.h>
 #include <cmath>
 #include <cstring>
 #include <ctime>
@@ -2002,7 +2003,29 @@ void Mesh::FinalizeTopology()
    FinalizeCheck();
    bool generate_edges = true;
 
-   if (spaceDim == 0) { spaceDim = Dim; }
+   if (spaceDim == 0) 
+   { 
+#define LOCAL_MIN(a,b) (((b) < (a) ? (b) : (a)))
+#define LOCAL_MAX(a,b) (((b) > (a) ? (b) : (a)))
+
+      double minValue[3] = {0,0,0};
+      double maxValue[3] = {0,0,0};
+      for(int i = 0; i < vertices.Size(); i++)
+      {
+         for(int j = 0; j < 3 ; j++)
+         {
+            minValue[j] = LOCAL_MIN(minValue[j],vertices[i](j));
+            maxValue[j] = LOCAL_MAX(maxValue[j],vertices[i](j));
+         }
+      }
+      spaceDim = 0;
+      for(int j = 0 ; j < 3; j++)
+      {  
+         std::cerr << "[min,max] = [" << minValue[j] << "," << maxValue[j] << "]" << std::endl;
+         if(minValue[j] != maxValue[j]) spaceDim++;
+      }
+      //spaceDim = Dim; 
+   }
    if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 
    // set the mesh type: 'meshgen', ...
