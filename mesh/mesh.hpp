@@ -154,10 +154,19 @@ protected:
    static const int vtk_quadratic_wedge[18];
    static const int vtk_quadratic_hex[27];
 
+   static const int vtk_tri_o5[21];
+   static const int vtk_tri_o6[28];
+
+   static const int vtk_tet_o2[10];
+   static const int vtk_tet_o3[20];
+   static const int vtk_tet_o4[35];
+   static const int vtk_tet_o5[56];
+   static const int vtk_tet_o6[84];
+
    static const int vtk_wedge_o3[40];
    static const int vtk_wedge_o4[75];
-   //static const int vtk_wedge_o5[40];
-   //static const int vtk_wedge_o6[40];
+   static const int vtk_wedge_o5[126];
+   static const int vtk_wedge_o6[196];
 
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
