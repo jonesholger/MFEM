@@ -2005,17 +2005,14 @@ void Mesh::FinalizeTopology()
 
    if (spaceDim == 0) 
    { 
-#define LOCAL_MIN(a,b) (((b) < (a) ? (b) : (a)))
-#define LOCAL_MAX(a,b) (((b) > (a) ? (b) : (a)))
-
       double minValue[3] = {0,0,0};
       double maxValue[3] = {0,0,0};
       for(int i = 0; i < vertices.Size(); i++)
       {
          for(int j = 0; j < 3 ; j++)
          {
-            minValue[j] = LOCAL_MIN(minValue[j],vertices[i](j));
-            maxValue[j] = LOCAL_MAX(maxValue[j],vertices[i](j));
+            minValue[j] = std::min(minValue[j],vertices[i](j));
+            maxValue[j] = std::max(maxValue[j],vertices[i](j));
          }
       }
       spaceDim = 0;
@@ -2024,7 +2021,8 @@ void Mesh::FinalizeTopology()
          std::cerr << "[min,max] = [" << minValue[j] << "," << maxValue[j] << "]" << std::endl;
          if(minValue[j] != maxValue[j]) spaceDim++;
       }
-      //spaceDim = Dim; 
+      spaceDim = Dim;
+      spaceDim = 3; 
    }
    if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 

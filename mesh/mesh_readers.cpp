@@ -1263,11 +1263,15 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       FinalizeTopology();
       finalize_topo = false;
 
+      // Note that we modified FinalizeTopology to compute spaceDim based on coordinates of the elements; so 2d elements can live in a 3d space
+      // The original code set spaceDim to the dimension of the elements.
+
       if(legacyElem)
       {
          // Define quadratic FE space
          FiniteElementCollection *fec = new QuadraticFECollection;
-         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+         //FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, spaceDim);
          Nodes = new GridFunction(fes);
          Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
          own_nodes = 1;
@@ -1331,7 +1335,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       {
          // Define H1 FE space
          FiniteElementCollection *fec = new H1_FECollection(order,Dim,BasisType::ClosedUniform);
-         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+         //FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, spaceDim);
          Nodes = new GridFunction(fes);
          Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
          own_nodes = 1;
@@ -1446,6 +1451,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             }
          } // for NumOfElements
 
+         std::cerr << "Nodes size: " << (*Nodes).Size() << std::endl;
          // Define the 'Nodes' from the 'points' through the 'pts_dof' map
          for (i = 0; i < np; i++)
          {
@@ -1456,7 +1462,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                for (j = 0; j < dofs.Size(); j++)
                {
                   (*Nodes)(dofs[j]) = points(3*i+j);
-                  //std::cerr << "*Nodes(" << dofs[j]  << ") = " <<points(3*i+j) << std::endl;
+                  std::cerr << "*Nodes(" << dofs[j]  << ") = " <<points(3*i+j) << std::endl;
                }
                //std::cerr << std::endl;
             }
