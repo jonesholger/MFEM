@@ -1051,7 +1051,6 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
    // Read the cells
    NumOfElements = n = 0;
    Array<int> cells_data;
-   //input >> ws >> buff;
    if (buff == "CELLS")
    {
       input >> NumOfElements >> n >> ws;
@@ -1062,19 +1061,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          input >> cells_data[i];
       }
    }
-#if 1 
-   // Diagnostic for single cell mesh
-   std::cerr << "Diagnostic for single cell mesh" << std::endl;
-   for(int i = 1 ; i < cells_data.Size(); i++)
-   {
-      double x = points(3*cells_data[i]+0);
-      double y = points(3*cells_data[i]+1);
-      double z = points(3*cells_data[i]+2);
-      std::cerr << "cells_data[" << i-1 << "] " ;
-      std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
 
-   }
-#endif
    // Use the following map to determine order given number of points for a Tet
    std::map<int,int> tetOrderFromPoints;
    {
@@ -1186,39 +1173,44 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                break;
             // Find descriptions of the following lagrange cell types at
             // https://github.com/Kitware/VTK/tree/265ca48a79a36538c95622c237da11133608bbe5/Common/DataModel
+
+            // Lagrange segment is not supported so is commented out, but may make an appearance in the future   
+            //case 68: // Lagrange Segment
+            //   elem_dim = 1;
+            //   elem_order = cells_data[j] - 2 + 1;
+            //   elements[i] = new Segment(cells_data[j+1],cells_data[j+2]);
+            //   lagrangeElem = true;
+            //   break;
             case 69: // Lagrange Triangle
-               //std::cerr << "Lagrange Triangle: " << cells_data[j] << std::endl;
                elem_dim = 2;
                elem_order = (std::sqrt(8*cells_data[j]+1)-3)/2;
+               MFEM_VERIFY(elem_order <= 6, "Lagrange Triangle is Unsupported beyond order 6");
                elements[i] = new Triangle(&cells_data[j+1]);
                lagrangeElem = true;
                break;    
             case 70: // Lagrange quadrilateral
-               //std::cerr << "Lagrange Quadrilateral: " << cells_data[j] << std::endl;
                elem_dim = 2;
                elem_order = std::sqrt(cells_data[j])-1;
                elements[i] = new Quadrilateral(&cells_data[j+1]);
                lagrangeElem = true;
                break;    
             case 71: // Lagrange Tetrahedron
-               //std::cerr << "Lagrange Tetrahedron: " << cells_data[j] << std::endl;
                elem_dim = 3;
                elem_order = tetOrderFromPoints[cells_data[j]]; 
+               MFEM_VERIFY(elem_order <= 6, "Lagrange Tetrahedron is Unsupported beyond order 6");
                elements[i] = new Tetrahedron(&cells_data[j+1]);
                lagrangeElem = true;
                break;    
             case 72: // Lagrange hex
-               //std::cerr << "Lagrange Hex: " << cells_data[j] << std::endl;
                elem_dim = 3;
                elem_order = std::cbrt(cells_data[j])-1;
                elements[i] = new Hexahedron(&cells_data[j+1]);
                lagrangeElem = true;
                break;    
             case 73: // Lagrange Wedge
-               std::cerr << "Lagrange Wedge: " << cells_data[j] << std::endl;
                elem_dim = 3;
                elem_order = wedgeOrderFromPoints[cells_data[j]];
-               std::cerr << "elem_order : " << elem_order << std::endl;
+               MFEM_VERIFY(elem_order <= 6, "Lagrange Wedge is Unsupported beyond order 6");
                elements[i] =
                   new Wedge(cells_data[j+1], cells_data[j+2], cells_data[j+3],
                             cells_data[j+4], cells_data[j+5], cells_data[j+6]);
@@ -1410,7 +1402,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                   }
                }
             }
-         }
+         } // for NumOfElements
 
          // Define the 'Nodes' from the 'points' through the 'pts_dof' map
          for (i = 0; i < np; i++)
@@ -1445,6 +1437,9 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          // setup some mappings for high order cells, similar to fixed quadratic arrays e.g. vtk_quadratic_hex;
          Array<int> *vtk_map;
 
+         Array<int> seg_map(0);
+         bool segMapInitialized = false;
+
          Array<int> tri_map(0);
          bool triMapInitialized = false;
 
@@ -1464,20 +1459,34 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          for (n = i = 0; i < NumOfElements; i++)
          {
             fes->GetElementDofs(i, dofs);
+#if 0            
             std::cerr << "GetElementDofs[" << dofs.Size() << "] :";
             for(int di=0; di < dofs.Size(); ++di)
             {
                cerr << " " << dofs[di];
             }
             std::cerr << std::endl;
+#endif            
             switch (elements[i]->GetGeometryType())
             {
+               case Geometry::SEGMENT:
+                  if(! segMapInitialized)
+                  {
+                     int segSize = order - 1 + 2;
+                     seg_map.SetSize(segSize);
+                     for(int i = 0; i < segSize; i++)
+                     {
+                        seg_map[i] = i;
+                     }
+                     segMapInitialized = true;
+                  }
+                  vtk_map = &seg_map;
+                  break;
                case Geometry::TRIANGLE:
                   if(! triMapInitialized)
                   {
                      int tri_size =(pow((order * 2)+3,2)-1)/8;
                      tri_map.SetSize(0);
-                     //GenVtkTriMap(tri_map, cells_data, points, order);
                      if(order < 5)
                      {
                         tri_map.SetSize(tri_size);
@@ -1490,22 +1499,15 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      {
                         tri_map.SetSize(tri_size);
                         for(int i=0; i < tri_size; i++) tri_map[i] = vtk_tri_o5[i];  
-                        //GenVtkTriMap(tri_map, cells_data, points, order);
                      }
                      else if(order == 6)
                      {
                         tri_map.SetSize(tri_size);
                         for(int i=0; i < tri_size; i++) tri_map[i] = vtk_tri_o6[i];  
-                        //GenVtkTriMap(tri_map, cells_data, points, order);
                      }
                      triMapInitialized = true;
                   }
                   vtk_map = &tri_map; 
-                  for(int i=0; i<tri_map.Size(); i++)
-                  {
-                     std::cerr << tri_map[i] << ",";
-                  }
-                  std::cerr << std::endl;
                   break;
                case Geometry::SQUARE:
                   if(! quadMapInitialized)
@@ -1544,15 +1546,9 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                         tet_map.SetSize(tet_size);
                         for(int i=0; i < tet_size; i++) tet_map[i] = vtk_tet_o6[i];  
                      }
-                     //GenVtkTetMap(tet_map, cells_data, points, order);
                      tetMapInitialized = true;
                   }
                   vtk_map = &tet_map;
-                  for(int i=0; i<tet_map.Size(); i++)
-                  {
-                     std::cerr << tet_map[i] << ",";
-                  }
-                  std::cerr << std::endl;
                   break;
                case Geometry::CUBE:
                   if(! hexMapInitialized)
@@ -1595,18 +1591,9 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                            wedge_map.SetSize(wsize);
                            for(int i=0; i < wsize; i++) wedge_map[i] = vtk_wedge_o6[i];  
                         }
-
                         wedgeMapInitialized = true;
-                     }
-#if 0                     
-                     // used the following just to generate static maps for various orders
-                     for(int i = 0; i < wsize; i++)
-                     {
-                        std::cerr << wedge_map[i] << "," ;
-                     }
-                     std::cerr << std::endl;
-#endif                     
-                  }
+                     } // if !wedgeMapInitialized
+                  } // end code block Geometry::PRISM
                   vtk_map = &wedge_map; 
                   break;
                default:
@@ -1630,7 +1617,6 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             }
          } // for NumOfElements
 
-         std::cerr << "Nodes size: " << (*Nodes).Size() << std::endl;
          // Define the 'Nodes' from the 'points' through the 'pts_dof' map
          for (i = 0; i < np; i++)
          {
@@ -1641,13 +1627,12 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                for (j = 0; j < dofs.Size(); j++)
                {
                   (*Nodes)(dofs[j]) = points(3*i+j);
-                  std::cerr << "*Nodes(" << dofs[j]  << ") = " <<points(3*i+j) << std::endl;
                }
-               //std::cerr << std::endl;
             }
          }
-         
-         // quick diagnostic to view dofs for spaceDim 
+        
+#if 0         
+         // quick diagnostic to view dofs for given spaceDim 
          int count = (*Nodes).Size()/spaceDim;
          for (i = 0; i < count; i++)
          {
@@ -1664,9 +1649,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
             }
             std::cerr << "Dof[" << i << "] = [" << x << "," << y << "," << z << "]" << std::endl;
          }
-
+#endif
          points.Destroy();
-         //
          read_gf = 0;
       } // else if(lagrangeElem)
    } // else order >= 2

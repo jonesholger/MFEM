@@ -154,6 +154,11 @@ protected:
    static const int vtk_quadratic_wedge[18];
    static const int vtk_quadratic_hex[27];
 
+
+   // We're also adding some static tri/tet/wedge permutation maps for the vtk lagrange cell types.
+   // These maps are needed since we use the reference cell in various generate map functions to 
+   // determine the permutation via sorting of faces or internal nodes depending on the situation.
+   // The static maps should work up to the currently permitted max order for tri/tet/wedges of order 6
    static const int vtk_tri_o5[21];
    static const int vtk_tri_o6[28];
 
