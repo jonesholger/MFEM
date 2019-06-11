@@ -1400,6 +1400,7 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
       if (nv > 0)
       {
          mesh->GetElementVertices(i, V);
+         //V.Print(std::cerr);
       }
       if (ne > 0)
       {
@@ -1426,6 +1427,7 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
             for (j = 0; j < nv; j++)
             {
                dofs[k*nv+j] = V[k]*nv+j;
+               //std::cerr << "GetElementDofs dofs[" << k*nv+j << "] = " << V[k]*nv+j << std::endl; 
             }
          }
          nv *= V.Size();

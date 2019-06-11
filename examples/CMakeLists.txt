@@ -28,6 +28,7 @@ list(APPEND ALL_EXE_SRCS
   ex19.cpp
   ex20.cpp
   ex22.cpp
+  view_basis.cpp
   )
 
 if (MFEM_USE_MPI)

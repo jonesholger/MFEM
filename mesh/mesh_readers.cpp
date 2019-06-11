@@ -1208,13 +1208,15 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                lagrangeElem = true;
                break;    
             case 73: // Lagrange Wedge
-               elem_dim = 3;
-               elem_order = wedgeOrderFromPoints[cells_data[j]];
-               MFEM_VERIFY(elem_order <= 6, "Lagrange Wedge is Unsupported beyond order 6");
-               elements[i] =
-                  new Wedge(cells_data[j+1], cells_data[j+2], cells_data[j+3],
-                            cells_data[j+4], cells_data[j+5], cells_data[j+6]);
-               lagrangeElem = true;
+               {
+                  elem_dim = 3;
+                  elem_order = wedgeOrderFromPoints[cells_data[j]];
+                  MFEM_VERIFY(elem_order <= 6, "Lagrange Wedge is Unsupported beyond order 6");
+                  elements[i] =
+                     new Wedge(cells_data[j+1], cells_data[j+2], cells_data[j+3],
+                              cells_data[j+4], cells_data[j+5], cells_data[j+6]);
+                  lagrangeElem = true;
+               }
                break;    
             default:
                MFEM_ABORT("VTK mesh : cell type " << ct << " is not supported!");
@@ -1228,6 +1230,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      "Mixing of Legacy and Lagrange Cell Types is not supported");
          Dim = elem_dim;
          order = elem_order;
+         std::cerr << "Order=" << order << std::endl;
          j += cells_data[j] + 1;
       }
    }
@@ -1275,6 +1278,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 
       // No boundary is defined in a VTK mesh
       NumOfBdrElements = 0;
+      FinalizeTopology();
+      CheckElementOrientation(true);
    }
 
    else if (order >= 2) // The following section of code is shared for legacy quadratic and the lagrange high order
@@ -1351,6 +1356,13 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       // Generate faces and edges so that we can define 
       // FE space on the mesh
       FinalizeTopology();
+      Array<bool> wrong_orientation_flag(NumOfElements);
+      for(i=0; i<NumOfElements;i++)
+      {
+         wrong_orientation_flag[i] = false;
+      }
+      CheckElementOrientationFlags(true,wrong_orientation_flag);
+
       finalize_topo = false;
 
       // Note that we modified FinalizeTopology to compute spaceDim based on coordinates of the elements; so 2d elements can live in a 3d space
@@ -1459,7 +1471,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          for (n = i = 0; i < NumOfElements; i++)
          {
             fes->GetElementDofs(i, dofs);
-#if 0            
+#if 1            
             std::cerr << "GetElementDofs[" << dofs.Size() << "] :";
             for(int di=0; di < dofs.Size(); ++di)
             {
@@ -1474,9 +1486,9 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                   {
                      int segSize = order - 1 + 2;
                      seg_map.SetSize(segSize);
-                     for(int i = 0; i < segSize; i++)
+                     for(int ii = 0; ii < segSize; ii++)
                      {
-                        seg_map[i] = i;
+                        seg_map[ii] = ii;
                      }
                      segMapInitialized = true;
                   }
@@ -1490,20 +1502,20 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      if(order < 5)
                      {
                         tri_map.SetSize(tri_size);
-                        for(int i = 0; i < tri_size; i++)
+                        for(int ii = 0; ii < tri_size; ii++)
                         {
-                           tri_map[i] = i;
+                           tri_map[ii] = ii;
                         }
                      }
                      else if(order == 5)
                      {
                         tri_map.SetSize(tri_size);
-                        for(int i=0; i < tri_size; i++) tri_map[i] = vtk_tri_o5[i];  
+                        for(int ii=0; ii < tri_size; ii++) tri_map[ii] = vtk_tri_o5[ii];  
                      }
                      else if(order == 6)
                      {
                         tri_map.SetSize(tri_size);
-                        for(int i=0; i < tri_size; i++) tri_map[i] = vtk_tri_o6[i];  
+                        for(int ii=0; ii < tri_size; ii++) tri_map[ii] = vtk_tri_o6[ii];  
                      }
                      triMapInitialized = true;
                   }
@@ -1524,27 +1536,27 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      if(order == 2)
                      {
                         tet_map.SetSize(tet_size);
-                        for(int i=0; i < tet_size; i++) tet_map[i] = vtk_tet_o2[i];  
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o2[ii];  
                      }
                      else if(order == 3)
                      {
                         tet_map.SetSize(tet_size);
-                        for(int i=0; i < tet_size; i++) tet_map[i] = vtk_tet_o3[i];  
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o3[ii];  
                      }
                      else if(order == 4)
                      {
                         tet_map.SetSize(tet_size);
-                        for(int i=0; i < tet_size; i++) tet_map[i] = vtk_tet_o4[i];  
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o4[ii];  
                      }
                      else if(order == 5)
                      {
                         tet_map.SetSize(tet_size);
-                        for(int i=0; i < tet_size; i++) tet_map[i] = vtk_tet_o5[i];  
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o5[ii];  
                      }
                      else if(order == 6)
                      {
                         tet_map.SetSize(tet_size);
-                        for(int i=0; i < tet_size; i++) tet_map[i] = vtk_tet_o6[i];  
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o6[ii];  
                      }
                      tetMapInitialized = true;
                   }
@@ -1566,30 +1578,41 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                         if(order == 2)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int i = 0; i < wsize; i++)
+                           if(wrong_orientation_flag[i])
                            {
-                              wedge_map[i] = i;
+                              std::cerr << "wrong orientation flag detected for element:" << i << std::endl;
+                              for(int ii = 0; ii < wsize; ii++)
+                              {
+                                 wedge_map[ii] = vtk_quadratic_wedge[ii];
+                              }
+                           }
+                           else
+                           {
+                              for(int ii = 0; ii < wsize; ii++)
+                              {
+                                 wedge_map[ii] = ii;
+                              }
                            }
                         }
                         else if(order == 3)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int i=0; i < wsize; i++) wedge_map[i] = vtk_wedge_o3[i];  
+                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o3[ii];  
                         }
                         else if(order == 4)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int i=0; i < wsize; i++) wedge_map[i] = vtk_wedge_o4[i];  
+                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o4[ii];  
                         }
                         else if(order == 5)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int i=0; i < wsize; i++) wedge_map[i] = vtk_wedge_o5[i];  
+                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o5[ii];  
                         }
                         else if(order == 6)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int i=0; i < wsize; i++) wedge_map[i] = vtk_wedge_o6[i];  
+                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o6[ii];  
                         }
                         wedgeMapInitialized = true;
                      } // if !wedgeMapInitialized
@@ -1600,21 +1623,25 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                   MFEM_ABORT("VTK mesh : Unsupported Cell Type Encountered!");
                   break;
             } // switch elements geometry type
-
+#if 1
             for (n++, j = 0; j < dofs.Size(); j++, n++)
             {
                if (pts_dof[cells_data[n]] == -1)
                {
-                  pts_dof[cells_data[n]] = dofs[(*vtk_map)[j]];
+                  pts_dof[cells_data[n]] = dofs[(*vtk_map)[j]] ;
+                  std::cerr << "pts_dof[" << cells_data[n] << "] = " << dofs[(*vtk_map)[j]] << std::endl;
                }
                else
                {
                   if (pts_dof[cells_data[n]] != dofs[(*vtk_map)[j]])
                   {
-                     MFEM_ABORT("VTK mesh : inconsistent mesh!");
+                     std::cerr << "Inconsistent: pts_dof[cells_data[n]] != dofs[(*vtk_map)[j]] : " << pts_dof[cells_data[n]] << " != " << dofs[(*vtk_map)[j]] << std::endl; 
+                     //MFEM_ABORT("VTK mesh : inconsistent mesh!");
                   }
                }
             }
+#endif
+
          } // for NumOfElements
 
          // Define the 'Nodes' from the 'points' through the 'pts_dof' map
@@ -1627,13 +1654,15 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                for (j = 0; j < dofs.Size(); j++)
                {
                   (*Nodes)(dofs[j]) = points(3*i+j);
+                  std::cerr << "(*Nodes)(" << dofs[j] << ") = " << points(3*i+j) << std::endl; 
                }
             }
          }
         
-#if 0         
+#if 1         
          // quick diagnostic to view dofs for given spaceDim 
          int count = (*Nodes).Size()/spaceDim;
+         std::cerr << "count: " << count << std::endl;
          for (i = 0; i < count; i++)
          {
             double x = (*Nodes).Elem(i);
