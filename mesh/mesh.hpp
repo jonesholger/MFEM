@@ -169,9 +169,13 @@ protected:
    static const int vtk_tet_o6[84];
 
    static const int vtk_wedge_o3[40];
+   static const int vtk_wedge_o3_alt[40];
    static const int vtk_wedge_o4[75];
+   static const int vtk_wedge_o4_alt[75];
    static const int vtk_wedge_o5[126];
+   static const int vtk_wedge_o5_alt[126];
    static const int vtk_wedge_o6[196];
+   static const int vtk_wedge_o6_alt[196];
 
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
@@ -231,7 +235,9 @@ protected:
    void GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const Vector &points, const int order);
    void GenVtkTriMap(Array<int> &tri_map, const Array<int> &cells_data, const Vector &points, const int order);
    void GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order);
+   void GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order);
    void GenVtkWedgeMap(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order);
+   void GenVtkWedgeMapAlt(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order);
    void ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                     bool &finalize_topo);
    void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
@@ -1253,7 +1259,6 @@ public:
    /** @brief Find the ids of the elements that contain the given points, and
        their corresponding reference coordinates.
 
-       The DenseMatrix @a point_mat describes the given points - one point for
        each column; it should have SpaceDimension() rows.
 
        The InverseElementTransformation object, @a inv_trans, is used to attempt

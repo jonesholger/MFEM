@@ -418,12 +418,21 @@ const int Mesh::vtk_wedge_o3[40] =
    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,35,34,37,36,38,39
 };
 
+const int Mesh::vtk_wedge_o3_alt[40] =
+{
+   0,2,1,3,5,4,11,10,9,8,7,6,17,16,15,14,13,12,18,19,22,23,20,21,24,25,35,34,37,36,31,30,33,32,26,27,28,29,38,39
+};
 
 const int Mesh::vtk_wedge_o4[75] =
 {
    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,
    30,31,32,33,35,34,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,
    59,58,57,62,61,60,65,64,63,66,67,68,69,70,71,72,73,74
+};
+
+const int Mesh::vtk_wedge_o4_alt[75] =
+{
+   0,2,1,3,5,4,14,13,12,11,10,9,8,7,6,23,22,21,20,19,18,17,16,15,24,25,26,30,31,32,27,28,29,33,34,35,36,38,37,59,58,57,62,61,60,65,64,63,50,49,48,53,52,51,56,55,54,39,40,41,42,43,44,45,46,47,66,68,67,69,71,70,72,74,73
 };
 
 const int Mesh::vtk_wedge_o5[126] =
@@ -433,6 +442,11 @@ const int Mesh::vtk_wedge_o5[126] =
    57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,
    84,85,89,88,87,86,93,92,91,90,97,96,95,94,101,100,99,98,102,103,104,105,106,107,108,
    109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125
+};
+
+const int Mesh::vtk_wedge_o5_alt[126] =
+{
+   0,2,1,3,5,4,17,16,15,14,13,12,11,10,9,8,7,6,29,28,27,26,25,24,23,22,21,20,19,18,30,31,32,33,38,39,40,41,34,35,36,37,42,43,44,45,46,47,48,51,53,49,52,50,89,88,87,86,93,92,91,90,97,96,95,94,101,100,99,98,73,72,71,70,77,76,75,74,81,80,79,78,85,84,83,82,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,102,105,107,103,106,104,108,111,113,109,112,110,114,117,119,115,118,116,120,123,125,121,124,122
 };
 
 const int Mesh::vtk_wedge_o6[196] =
@@ -445,6 +459,11 @@ const int Mesh::vtk_wedge_o6[196] =
    134,133,132,131,140,139,138,137,136,145,144,143,142,141,146,147,148,149,150,151,152,
    153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,
    174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195
+};
+
+const int Mesh::vtk_wedge_o6_alt[196] =
+{
+   0,2,1,3,5,4,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,36,37,38,39,40,46,47,48,49,50,41,42,43,44,45,51,52,53,54,55,56,57,58,59,60,61,65,68,70,62,66,69,63,67,64,125,124,123,122,121,130,129,128,127,126,135,134,133,132,131,140,139,138,137,136,145,144,143,142,141,100,99,98,97,96,105,104,103,102,101,110,109,108,107,106,115,114,113,112,111,120,119,118,117,116,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,146,150,153,155,147,151,154,148,152,149,156,160,163,165,157,161,164,158,162,159,166,170,173,175,167,171,174,168,172,169,176,180,183,185,177,181,184,178,182,179,186,190,193,195,187,191,194,188,192,189
 };
 
 void Mesh::GenVtkSortedPerm(Array<int> &perm, const double wx, const double wy, const double wz, const int offset, const Array<int> &cells_data, const Vector &points)
@@ -693,10 +712,232 @@ void Mesh::GenVtkTriMap(Array<int> &tri_map, const Array<int> &cells_data, const
 
 }
 
+void Mesh::GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order)
+{
+
+   int tet_size = (order+1) * (order+2) * (order + 3) / 6;
+   tet_map.SetSize(0);
+   Array<int> tetVerts(4), tetEdges(0), tetFaces(0), tetInt(0);
+   Array<int> tetEdge01(order-1),tetEdge02(order-1),tetEdge03(order-1);
+   Array<int> tetEdge12(order-1),tetEdge13(order-1),tetEdge23(order-1);
+
+   {
+      int i,nn=0;
+      tetVerts[1] = nn++;
+      tetVerts[0] = nn++;
+      tetVerts[2] = nn++;
+      tetVerts[3] = nn++;
+
+      for(i=0; i< tetEdge01.Size(); i++, nn++) // affects edge03
+      {
+         //tetEdge01[i] = nn;
+         int p = tetEdge01.Size();
+         tetEdge01[p-1-i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge01[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+      for(i=0; i< tetEdge12.Size(); i++, nn++) // affects edge23
+      {
+         //int p = tetEdge12.Size();
+         //tetEdge12[p-1-i] = nn;
+         tetEdge12[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge12[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+      for(i=0; i< tetEdge02.Size(); i++, nn++) // affects edge13
+      {
+         //int p = tetEdge02.Size();
+         //tetEdge02[p-1-i] = nn;
+         tetEdge02[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge02[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i=0; i< tetEdge03.Size(); i++, nn++) // affects edge02
+      {
+         int p = tetEdge03.Size();
+         tetEdge03[p-1-i] = nn;
+         //tetEdge03[i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge03[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i=0; i< tetEdge13.Size(); i++, nn++) // affects edge01
+      {
+         tetEdge13[i] = nn;
+         //int p = tetEdge13.Size();
+         //tetEdge13[p-1-i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge13[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+
+      for(i=0; i< tetEdge23.Size(); i++, nn++) //affects edge12
+      {
+         tetEdge23[i] = nn;
+         //int p = tetEdge23.Size();
+         //tetEdge23[p-1-i] = nn;
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "tetEdge23[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+      }
+      // we need to permute some edges 
+ #if 0
+      tetEdges.Append(tetEdge01);
+      tetEdges.Append(tetEdge03);
+      tetEdges.Append(tetEdge12);
+      tetEdges.Append(tetEdge02);
+      tetEdges.Append(tetEdge13);
+      tetEdges.Append(tetEdge23);
+#endif
+      tetEdges.Append(tetEdge01);
+      tetEdges.Append(tetEdge12);
+      tetEdges.Append(tetEdge03);
+      tetEdges.Append(tetEdge13);
+      tetEdges.Append(tetEdge02);
+      tetEdges.Append(tetEdge23);
+      if(order > 2)
+      {
+         int faceSize = (pow(((order-3) * 2)+3,2)-1)/8; // same as triangle logic, but starting at order 3
+         std::cerr << "faceSize : " << faceSize << std::endl;
+         Array<int> tetFaceA(faceSize), tetFaceB(faceSize), tetFaceC(faceSize), tetFaceD(faceSize);
+         // Faces requires sorted permutation, the data used to generate the permutation may
+         // live at a different offset, due to an opaque internal transformation. 
+         // Use the generated grid function as final arbiter while
+         // diagnosing actions of the following logic.
+
+         int save_nn = nn;
+         // MFEM 123
+
+         Array<int>perm(faceSize);
+         //int offset = nn + 1 + 1*faceSize;
+         //GenVtkSortedPerm(perm, -1e2, 1e4, 1e6, offset, cells_data, points);
+         int offset = nn + 1;
+         offset = nn + 1 + 2*faceSize ;
+         GenVtkSortedPerm(perm, -1e3, 1e5, 0, offset, cells_data, points);// affects bottom face
+         for(i = 0; i < tetFaceA.Size(); i++, nn++)
+         {
+            tetFaceA[perm[i]] = nn;
+            double x = points(3*cells_data[offset+i]+0);
+            double y = points(3*cells_data[offset+i]+1);
+            double z = points(3*cells_data[offset+i]+2);
+            std::cerr << "FaceA[" << offset << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+
+         // MFEM 032
+         //offset = nn + 1 + 1*faceSize ;
+         offset = nn + 1;
+         GenVtkSortedPerm(perm, 1, 1e3, 1e5, offset, cells_data, points); //affects rear face
+         for(i = 0; i < tetFaceB.Size(); i++, nn++)
+         {
+            tetFaceB[perm[i]] = nn ;
+            double x = points(3*cells_data[offset+i]+0);
+            double y = points(3*cells_data[offset+i]+1);
+            double z = points(3*cells_data[offset+i]+2);
+            std::cerr << "FaceB[" << offset << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+         //MFEM 013
+         offset = nn + 1 + -1*faceSize ;
+         offset = nn + 1 + -2*faceSize ;
+         offset = nn + 1;
+         GenVtkSortedPerm(perm, 1, 1e3, 1e5, offset, cells_data, points); //affects front face
+         for(i = 0; i < tetFaceC.Size(); i++, nn++)
+         {
+            tetFaceC[perm[i]] = nn;
+            double x = points(3*cells_data[offset+i]+0);
+            double y = points(3*cells_data[offset+i]+1);
+            double z = points(3*cells_data[offset+i]+2);
+            std::cerr << "FaceC[" << offset << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+         // MFEM 021
+         offset = nn + 1;
+         GenVtkSortedPerm(perm, 0, -1e3, -1e5, offset, cells_data, points); //affects left face
+         for(i = 0; i < tetFaceD.Size(); i++, nn++)
+         {
+            tetFaceD[perm[i]] = nn;
+            double x = points(3*cells_data[offset+i]+0);
+            double y = points(3*cells_data[offset+i]+1);
+            double z = points(3*cells_data[offset+i]+2);
+            std::cerr << "FaceD[" << offset << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+#if 0
+         tetFaces.Append(tetFaceC); // MFEM Face013
+         tetFaces.Append(tetFaceA); // MFEM Face123
+         tetFaces.Append(tetFaceB); // MFEM Face032
+         tetFaces.Append(tetFaceD); // MFEM Face021
+#endif
+
+#if 1         
+         tetFaces.Append(tetFaceC); 
+         tetFaces.Append(tetFaceB); 
+         tetFaces.Append(tetFaceA); 
+         tetFaces.Append(tetFaceD); 
+#endif
+
+         nn = save_nn;
+         for(i = 0; i < tetFaces.Size(); i++, nn++)
+         {
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetFaces[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+      }
+
+      int interiorSize = tet_size - tetVerts.Size() - tetEdges.Size() - tetFaces.Size();
+
+      if(interiorSize > 0)
+      {
+         tetInt.SetSize(interiorSize);
+         Array<int> perm(interiorSize);
+         GenVtkSortedPerm(perm, 1.0, 1e3, 1e5, nn+1, cells_data, points);
+         std::cerr << "tetInt size: " << tetInt.Size() << std::endl;
+         for(i=0 ; i < tetInt.Size(); i++, nn++)
+         {
+            tetInt[perm[i]] = nn; 
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "tetInt[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+      }
+   } // tet map block
+   tet_map.Append(tetVerts);
+   tet_map.Append(tetEdges);
+   tet_map.Append(tetFaces);
+   tet_map.Append(tetInt);   
+   std::cerr << "tet_map size: " << tet_map.Size() << std::endl;   
+
+}
+
+
 void Mesh::GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order)
 {
 
    int tet_size = (order+1) * (order+2) * (order + 3) / 6;
+   tet_map.SetSize(0);
    Array<int> tetVerts(4), tetEdges(0), tetFaces(0), tetInt(0);
    Array<int> tetEdge01(order-1),tetEdge02(order-1),tetEdge03(order-1);
    Array<int> tetEdge12(order-1),tetEdge13(order-1),tetEdge23(order-1);
@@ -890,6 +1131,167 @@ void Mesh::GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const
 
 }
 
+void Mesh::GenVtkWedgeMapAlt(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order)
+{
+   int wedge_size = ((order+1) * (order+2))/2 * (order+1);
+   wedge_map.SetSize(0);
+   Array<int>wedgeVerts(6);
+   //Array<int>wedgeEdges(9 * (order-1));
+   Array<int>wedgeEdges(0);
+   Array<int>wedgeEdge30(order-1),wedgeEdge40(order-1),wedgeEdge50(order-1);
+   Array<int>wedgeEdge31(order-1),wedgeEdge41(order-1),wedgeEdge51(order-1);
+   Array<int>wedgeEdge02(order-1),wedgeEdge12(order-1),wedgeEdge22(order-1);
+
+   Array<int>triFaceA(0), triFaceB(0);
+   Array<int>quadFaceA(0), quadFaceB(0), quadFaceC(0);
+   Array<int>wedgeInt(0);
+
+   int i,nn=0;
+   wedgeVerts[0] = nn++;
+   wedgeVerts[2] = nn++;
+   wedgeVerts[1] = nn++;
+   wedgeVerts[3] = nn++;
+   wedgeVerts[5] = nn++;
+   wedgeVerts[4] = nn++;
+
+   // triangle edges x-z plane; y=0
+   //for(int i=0; i<wedgeEdge30.Size();i++,nn++) wedgeEdge30[i] = nn;  // left edge
+   for(int p=wedgeEdge30.Size()-1; p >= 0 ; p--,nn++) wedgeEdge30[p] = nn; 
+   //for(int i=0; i<wedgeEdge40.Size();i++,nn++) wedgeEdge40[i] = nn;  // 45 deg edge
+   for(int p=wedgeEdge40.Size()-1; p >= 0 ; p--,nn++) wedgeEdge40[p] = nn; 
+   //for(int i=0; i<wedgeEdge50.Size();i++,nn++) wedgeEdge50[i] = nn; // bottom edge
+   for(int p=wedgeEdge50.Size()-1; p >= 0 ; p--,nn++) 
+   {
+      wedgeEdge50[p] = nn; 
+      double x = points(3*cells_data[nn+1]+0);
+      double y = points(3*cells_data[nn+1]+1);
+      double z = points(3*cells_data[nn+1]+2);
+      std::cerr << "Edge50[" << nn << "] " ;
+      std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+   }
+
+   // triangle edges x-z plane; y=1
+   //for(int i=0; i<wedgeEdge31.Size();i++,nn++) wedgeEdge31[i] = nn;
+   for(int p=wedgeEdge31.Size()-1; p >= 0 ; p--,nn++) wedgeEdge31[p] = nn; 
+   //for(int i=0; i<wedgeEdge41.Size();i++,nn++) wedgeEdge41[i] = nn;
+   for(int p=wedgeEdge41.Size()-1; p >= 0 ; p--,nn++) wedgeEdge41[p] = nn; 
+   //for(int i=0; i<wedgeEdge51.Size();i++,nn++) wedgeEdge51[i] = nn;
+   for(int p=wedgeEdge51.Size()-1; p >= 0 ; p--,nn++) wedgeEdge51[p] = nn; 
+   for(int i=0; i<wedgeEdge02.Size();i++,nn++) wedgeEdge02[i] = nn;
+   for(int i=0; i<wedgeEdge12.Size();i++,nn++) wedgeEdge12[i] = nn;
+   for(int i=0; i<wedgeEdge22.Size();i++,nn++) wedgeEdge22[i] = nn;
+
+   wedgeEdges.Append(wedgeEdge50);
+   wedgeEdges.Append(wedgeEdge40);
+   wedgeEdges.Append(wedgeEdge30);
+
+   wedgeEdges.Append(wedgeEdge51);
+   wedgeEdges.Append(wedgeEdge41);
+   wedgeEdges.Append(wedgeEdge31);
+
+   wedgeEdges.Append(wedgeEdge02);
+   wedgeEdges.Append(wedgeEdge22);
+   wedgeEdges.Append(wedgeEdge12);
+
+   if(order >= 3)
+   {
+      int triFaceSize = (pow(((order-3) * 2)+3,2)-1)/8; // same as triangle logic, but starting at order 3
+      triFaceA.SetSize(triFaceSize);
+      triFaceB.SetSize(triFaceSize);
+      Array<int> perm(triFaceSize);
+      GenVtkSortedPerm(perm, 1e3, 1, 1e5, nn+1, cells_data, points);
+      for(i=0; i<triFaceA.Size(); i++, nn++)
+      {
+         triFaceA[perm[i]] = nn;
+      }
+      GenVtkSortedPerm(perm, 1e5, 1, 1e3, nn+1, cells_data, points);
+      for(i=0; i<triFaceB.Size(); i++, nn++)
+      {
+         triFaceB[perm[i]] = nn;
+      }
+      int wedgeIntSize = triFaceSize * (order - 1);
+      wedgeInt.SetSize(wedgeIntSize);
+
+   }
+   if(order >= 2)
+   {
+      int quadFaceSize = pow(order-1,2);
+      Array<int> perm(quadFaceSize);
+      quadFaceA.SetSize(quadFaceSize);
+      quadFaceB.SetSize(quadFaceSize);
+      quadFaceC.SetSize(quadFaceSize);
+
+      GenVtkSortedPerm(perm, 1.0, 1e5, 1e3, quadFaceSize*2+nn+1, cells_data, points);
+      perm.Print();
+      for(i=0; i< quadFaceA.Size(); i++, nn++)
+      {
+         quadFaceA[perm[i]] = nn;
+#if 1         
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "quadFaceA[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+#endif         
+      }
+
+      GenVtkSortedPerm(perm, 1.0, 1e5, -1e3, nn+1, cells_data, points);
+      perm.Print();
+      for(i=0; i< quadFaceB.Size(); i++, nn++)
+      {
+         quadFaceB[perm[i]] = nn;
+#if 1    
+         {     
+            double x = points(3*cells_data[nn+1]+0);
+            double y = points(3*cells_data[nn+1]+1);
+            double z = points(3*cells_data[nn+1]+2);
+            std::cerr << "quadFaceB[" << nn << "] " ;
+            std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+         }
+#endif         
+
+      }
+
+      GenVtkSortedPerm(perm, -1.0, 1e3, 1e5, -quadFaceSize*2+nn+1, cells_data, points);
+      perm.Print();
+      for(i=0; i< quadFaceC.Size(); i++, nn++)
+      {
+         quadFaceC[perm[i]] = nn;
+         //quadFaceC[i] = nn;
+#if 1         
+         double x = points(3*cells_data[nn+1]+0);
+         double y = points(3*cells_data[nn+1]+1);
+         double z = points(3*cells_data[nn+1]+2);
+         std::cerr << "quadFaceC[" << nn << "] " ;
+         std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
+#endif         
+      }
+   } // quadFace code block
+   {
+      Array<int> perm(wedgeInt.Size());
+      GenVtkSortedPerm(perm, 1e3, 1e5, 1, nn+1, cells_data, points);
+      for(i = 0 ; i<wedgeInt.Size(); i++, nn++)
+      {
+         wedgeInt[perm[i]] = nn;
+      }
+   }
+   wedge_map.Append(wedgeVerts);
+   wedge_map.Append(wedgeEdges);
+   wedge_map.Append(triFaceA);
+   wedge_map.Append(triFaceB);
+   wedge_map.Append(quadFaceC);
+   wedge_map.Append(quadFaceB);
+   wedge_map.Append(quadFaceA);
+   wedge_map.Append(wedgeInt);
+
+
+   std::cerr << "wedge size: " << wedge_size << " vs map size: " << wedge_map.Size() << std::endl;
+   for(int i = 0; i <wedge_map.Size(); i++)
+   {
+      std::cerr << wedge_map[i] << "," ;
+   }
+   std:: cerr << std::endl;
+}
 
 void Mesh::GenVtkWedgeMap(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order)
 {
@@ -1029,6 +1431,19 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       }
    }
 
+
+#if 1   
+ // swap coordinates as an experiment to test orientation logic
+   for (i = 0; i < np; i++)
+   {
+      double x = points(3*i+0);
+      double y = points(3*i+1);
+      double z = points(3*i+2);
+      points(3*i+0) = z;
+      points(3*i+2) = x;
+   }
+   
+#endif
    //skip metadata
    // Looks like:
    // METADATA
@@ -1365,7 +1780,8 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 
       finalize_topo = false;
 
-      // Note that we modified FinalizeTopology to compute spaceDim based on coordinates of the elements; so 2d elements can live in a 3d space
+      // Note that we modified FinalizeTopology to compute spaceDim based on coordinates of the elements; 
+      // so 2d elements can live in a 3d space
       // The original code set spaceDim to the dimension of the elements.
 
       if(legacyElem)
@@ -1533,20 +1949,41 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                   if(! tetMapInitialized)
                   {
                      int tet_size = (order+1) * (order+2) * (order + 3) / 6;
+                     std::cerr << "Tet size: " << tet_size << std::endl;
+                     tet_map.SetSize(tet_size);
                      if(order == 2)
                      {
-                        tet_map.SetSize(tet_size);
-                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o2[ii];  
+                        if(wrong_orientation_flag[i])
+                        {
+                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
+                        }
+                        else
+                        {
+                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o2[ii];  
+                        }
                      }
                      else if(order == 3)
                      {
-                        tet_map.SetSize(tet_size);
-                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o3[ii];  
+                        if(wrong_orientation_flag[i])
+                        {
+                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
+                        }
+                        else
+                        {
+                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o3[ii];
+                        }  
                      }
                      else if(order == 4)
                      {
-                        tet_map.SetSize(tet_size);
-                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o4[ii];  
+                        if(wrong_orientation_flag[i])
+                        {
+                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
+                           //for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o4[ii]; 
+                        }
+                        else
+                        {
+                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o4[ii]; 
+                        } 
                      }
                      else if(order == 5)
                      {
@@ -1580,11 +2017,9 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                            wedge_map.SetSize(wsize);
                            if(wrong_orientation_flag[i])
                            {
-                              std::cerr << "wrong orientation flag detected for element:" << i << std::endl;
-                              for(int ii = 0; ii < wsize; ii++)
-                              {
-                                 wedge_map[ii] = vtk_quadratic_wedge[ii];
-                              }
+                              // we'll borrow legacy quadratic wedge map
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_quadratic_wedge[ii];
+                              //GenVtkWedgeMapAlt(wedge_map,cells_data,points,order);                              
                            }
                            else
                            {
@@ -1597,22 +2032,54 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                         else if(order == 3)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o3[ii];  
+                           if(wrong_orientation_flag[i])
+                           {
+                              //GenVtkWedgeMapAlt(wedge_map,cells_data,points,order);                              
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o3_alt[ii];
+                           }
+                           else 
+                           {
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o3[ii];
+                           }  
                         }
                         else if(order == 4)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o4[ii];  
+                           if(wrong_orientation_flag[i])
+                           {
+                              //GenVtkWedgeMapAlt(wedge_map,cells_data,points,order);                              
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o4_alt[ii];
+                           }
+                           else 
+                           {
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o4[ii];
+                           }  
                         }
                         else if(order == 5)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o5[ii];  
+                           if(wrong_orientation_flag[i])
+                           {
+                              //GenVtkWedgeMapAlt(wedge_map,cells_data,points,order);                              
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o5_alt[ii];
+                           }
+                           else 
+                           {
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o5[ii];
+                           }  
                         }
                         else if(order == 6)
                         {
                            wedge_map.SetSize(wsize);
-                           for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o6[ii];  
+                           if(wrong_orientation_flag[i])
+                           {
+                              //GenVtkWedgeMapAlt(wedge_map,cells_data,points,order);                              
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o6_alt[ii];
+                           }
+                           else 
+                           {
+                              for(int ii=0; ii < wsize; ii++) wedge_map[ii] = vtk_wedge_o6[ii];
+                           }  
                         }
                         wedgeMapInitialized = true;
                      } // if !wedgeMapInitialized

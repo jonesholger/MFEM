@@ -7823,37 +7823,43 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int btype)
    Nodes.IntPoint(2).Set3(cp[0], cp[p], cp[0]);
    Nodes.IntPoint(3).Set3(cp[0], cp[0], cp[p]);
 
+
+   std::cerr << "H1 Tet Vertex0 [" << cp[0] << "," << cp[0] << "," << cp[0] << "]" << std::endl;
+   std::cerr << "H1 Tet Vertex1 [" << cp[p] << "," << cp[0] << "," << cp[0] << "]" << std::endl;
+   std::cerr << "H1 Tet Vertex2 [" << cp[0] << "," << cp[p] << "," << cp[0] << "]" << std::endl;
+   std::cerr << "H1 Tet Vertex3 [" << cp[0] << "," << cp[0] << "," << cp[p] << "]" << std::endl;
+
    // edges (see Tetrahedron::edges in mesh/tetrahedron.cpp)
    int o = 4;
    for (int i = 1; i < p; i++)  // (0,1)
    {
       Nodes.IntPoint(o++).Set3(cp[i], cp[0], cp[0]);
-      //std::cerr << "H1 Tet edge 0->1 [" << cp[i] << "," << cp[0] << "," << cp[0] << "]" << std::endl;
+      std::cerr << "H1 Tet edge 0->1 [" << cp[i] << "," << cp[0] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (0,2)
    {
       Nodes.IntPoint(o++).Set3(cp[0], cp[i], cp[0]);
-      //std::cerr << "H1 Tet edge 0->2 [" << cp[0] << "," << cp[i] << "," << cp[0] << "]" << std::endl;
+      std::cerr << "H1 Tet edge 0->2 [" << cp[0] << "," << cp[i] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (0,3)
    {
       Nodes.IntPoint(o++).Set3(cp[0], cp[0], cp[i]);
-      //std::cerr << "H1 Tet edge 0->3 [" << cp[0] << "," << cp[0] << "," << cp[i] << "]" << std::endl;
+      std::cerr << "H1 Tet edge 0->3 [" << cp[0] << "," << cp[0] << "," << cp[i] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (1,2)
    {
       Nodes.IntPoint(o++).Set3(cp[p-i], cp[i], cp[0]);
-      //std::cerr << "H1 Tet edge 1->2 [" << cp[p-i] << "," << cp[i] << "," << cp[0] << "]" << std::endl;
+      std::cerr << "H1 Tet edge 1->2 [" << cp[p-i] << "," << cp[i] << "," << cp[0] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (1,3)
    {
       Nodes.IntPoint(o++).Set3(cp[p-i], cp[0], cp[i]);
-      //std::cerr << "H1 Tet edge 1->3 [" << cp[p-i] << "," << cp[0] << "," << cp[i] << "]" << std::endl;
+      std::cerr << "H1 Tet edge 1->3 [" << cp[p-i] << "," << cp[0] << "," << cp[i] << "]" << std::endl;
    }
    for (int i = 1; i < p; i++)  // (2,3)
    {
       Nodes.IntPoint(o++).Set3(cp[0], cp[p-i], cp[i]);
-      //std::cerr << "H1 Tet edge 2->3 [" << cp[0] << "," << cp[p-i] << "," << cp[i] << "]" << std::endl;
+      std::cerr << "H1 Tet edge 2->3 [" << cp[0] << "," << cp[p-i] << "," << cp[i] << "]" << std::endl;
    }
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
@@ -7862,28 +7868,28 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int btype)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[p-i-j]/w, cp[i]/w, cp[j]/w);
-         //std::cerr << "H1 Tet face (1,2,3) [" << cp[p-i-j]/w << "," << cp[i]/w << "," << cp[j]/w << "]" << std::endl;
+         std::cerr << "H1 Tet face (1,2,3) [" << cp[p-i-j]/w << "," << cp[i]/w << "," << cp[j]/w << "]" << std::endl;
       }
    for (int j = 1; j < p; j++)
       for (int i = 1; i + j < p; i++)  // (0,3,2)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[0], cp[j]/w, cp[i]/w);
-         //std::cerr << "H1 Tet face (0,3,2) [" << cp[0] << "," << cp[j]/w << "," << cp[i]/w << "]" << std::endl;
+         std::cerr << "H1 Tet face (0,3,2) [" << cp[0] << "," << cp[j]/w << "," << cp[i]/w << "]" << std::endl;
       }
    for (int j = 1; j < p; j++)
       for (int i = 1; i + j < p; i++)  // (0,1,3)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[i]/w, cp[0], cp[j]/w);
-         //std::cerr << "H1 Tet face (0,1,3) [" << cp[i]/w << "," << cp[0] << "," << cp[j]/w << "]" << std::endl;
+         std::cerr << "H1 Tet face (0,1,3) [" << cp[i]/w << "," << cp[0] << "," << cp[j]/w << "]" << std::endl;
       }
    for (int j = 1; j < p; j++)
       for (int i = 1; i + j < p; i++)  // (0,2,1)
       {
          double w = cp[i] + cp[j] + cp[p-i-j];
          Nodes.IntPoint(o++).Set3(cp[j]/w, cp[i]/w, cp[0]);
-         //std::cerr << "H1 Tet face (0,2,1) [" << cp[j]/w << "," << cp[i]/w << "," << cp[0] << "]" << std::endl;
+         std::cerr << "H1 Tet face (0,2,1) [" << cp[j]/w << "," << cp[i]/w << "," << cp[0] << "]" << std::endl;
       }
 
    // interior
@@ -7893,7 +7899,7 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int btype)
          {
             double w = cp[i] + cp[j] + cp[k] + cp[p-i-j-k];
             Nodes.IntPoint(o++).Set3(cp[i]/w, cp[j]/w, cp[k]/w);
-            //std::cerr << "H1 Tet Vol [" << cp[i]/w << "," << cp[j]/w << "," << cp[k]/w << "]" << std::endl;
+            std::cerr << "H1 Tet Vol [" << cp[i]/w << "," << cp[j]/w << "," << cp[k]/w << "]" << std::endl;
          }
 
    DenseMatrix T(Dof);
@@ -8444,7 +8450,7 @@ H1_WedgeElement::H1_WedgeElement(const int p,
    t_dof[4] = 1; s_dof[4] = 1;
    t_dof[5] = 2; s_dof[5] = 1;
 
-#if 1
+#if 0 
    for(int i = 0; i<6; i++)
    {
       std::cerr << "H1 Wedge Vert[" << t_dof[i] << "," << s_dof[i] << "]" << std::endl;
@@ -8456,23 +8462,23 @@ H1_WedgeElement::H1_WedgeElement(const int p,
    for (int i=1; i<p; i++)
    {
       t_dof[5 + 0 * ne + i] = 2 + 0 * ne + i; s_dof[5 + 0 * ne + i] = 0;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 0 * ne + i] << "," << s_dof[5 + 0 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 0 * ne + i] << "," << s_dof[5 + 0 * ne + i] << "]" << std::endl;
       t_dof[5 + 1 * ne + i] = 2 + 1 * ne + i; s_dof[5 + 1 * ne + i] = 0;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 1 * ne + i] << "," << s_dof[5 + 1 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 1 * ne + i] << "," << s_dof[5 + 1 * ne + i] << "]" << std::endl;
       t_dof[5 + 2 * ne + i] = 2 + 2 * ne + i; s_dof[5 + 2 * ne + i] = 0;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 2 * ne + i] << "," << s_dof[5 + 2 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 2 * ne + i] << "," << s_dof[5 + 2 * ne + i] << "]" << std::endl;
       t_dof[5 + 3 * ne + i] = 2 + 0 * ne + i; s_dof[5 + 3 * ne + i] = 1;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 3 * ne + i] << "," << s_dof[5 + 3 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 3 * ne + i] << "," << s_dof[5 + 3 * ne + i] << "]" << std::endl;
       t_dof[5 + 4 * ne + i] = 2 + 1 * ne + i; s_dof[5 + 4 * ne + i] = 1;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 4 * ne + i] << "," << s_dof[5 + 4 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 4 * ne + i] << "," << s_dof[5 + 4 * ne + i] << "]" << std::endl;
       t_dof[5 + 5 * ne + i] = 2 + 2 * ne + i; s_dof[5 + 5 * ne + i] = 1;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 5 * ne + i] << "," << s_dof[5 + 5 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 5 * ne + i] << "," << s_dof[5 + 5 * ne + i] << "]" << std::endl;
       t_dof[5 + 6 * ne + i] = 0;              s_dof[5 + 6 * ne + i] = i + 1;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 6 * ne + i] << "," << s_dof[5 + 6 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 6 * ne + i] << "," << s_dof[5 + 6 * ne + i] << "]" << std::endl;
       t_dof[5 + 7 * ne + i] = 1;              s_dof[5 + 7 * ne + i] = i + 1;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 7 * ne + i] << "," << s_dof[5 + 7 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 7 * ne + i] << "," << s_dof[5 + 7 * ne + i] << "]" << std::endl;
       t_dof[5 + 8 * ne + i] = 2;              s_dof[5 + 8 * ne + i] = i + 1;
-      std::cerr << "H1 Wedge Edge[" << t_dof[5 + 8 * ne + i] << "," << s_dof[5 + 8 * ne + i] << "]" << std::endl;
+      //std::cerr << "H1 Wedge Edge[" << t_dof[5 + 8 * ne + i] << "," << s_dof[5 + 8 * ne + i] << "]" << std::endl;
    }
 
    // Triangular Face DoFs
@@ -8484,9 +8490,9 @@ H1_WedgeElement::H1_WedgeElement(const int p,
       {
          int l = j - p + (((2 * p - 1) - i) * i) / 2;
          t_dof[6 + 9 * ne + k]      = 3 * p + l; s_dof[6 + 9 * ne + k]      = 0;
-         std::cerr << "H1 Wedge Tri-Face[" << t_dof[6 + 9 * ne + k] << "," << s_dof[6 + 9 * ne + k] << "]" << std::endl;
+         //std::cerr << "H1 Wedge Tri-Face[" << t_dof[6 + 9 * ne + k] << "," << s_dof[6 + 9 * ne + k] << "]" << std::endl;
          t_dof[6 + 9 * ne + nt + k] = 3 * p + k; s_dof[6 + 9 * ne + nt + k] = 1;
-         std::cerr << "H1 Wedge Tri-Face[" << t_dof[6 + 9 * ne + + nt +k] << "," << s_dof[6 + 9 * ne + nt + k] << "]" << std::endl;
+         //std::cerr << "H1 Wedge Tri-Face[" << t_dof[6 + 9 * ne + + nt +k] << "," << s_dof[6 + 9 * ne + nt + k] << "]" << std::endl;
          k++;
       }
    }
@@ -8503,11 +8509,11 @@ H1_WedgeElement::H1_WedgeElement(const int p,
          t_dof[6 + 9 * ne + 2 * nt + 2 * nq + k] = 2 + 2 * ne + i;
 
          s_dof[6 + 9 * ne + 2 * nt + 0 * nq + k] = 1 + j;
-         std::cerr << "H1 Wedge Quad-Face[" << t_dof[6 + 9 * ne + 2 * nt + 0 * nq + k] << "," << s_dof[6 + 9 * ne + 2 * nt + 0 * nq +k] << "]" << std::endl;
+         //std::cerr << "H1 Wedge Quad-Face[" << t_dof[6 + 9 * ne + 2 * nt + 0 * nq + k] << "," << s_dof[6 + 9 * ne + 2 * nt + 0 * nq +k] << "]" << std::endl;
          s_dof[6 + 9 * ne + 2 * nt + 1 * nq + k] = 1 + j;
-         std::cerr << "H1 Wedge Quad-Face[" << t_dof[6 + 9 * ne + 2 * nt + 1 * nq + k] << "," << s_dof[6 + 9 * ne + 2 * nt + 1 * nq +k] << "]" << std::endl;
+         //std::cerr << "H1 Wedge Quad-Face[" << t_dof[6 + 9 * ne + 2 * nt + 1 * nq + k] << "," << s_dof[6 + 9 * ne + 2 * nt + 1 * nq +k] << "]" << std::endl;
          s_dof[6 + 9 * ne + 2 * nt + 2 * nq + k] = 1 + j;
-         std::cerr << "H1 Wedge Quad-Face[" << t_dof[6 + 9 * ne + 2 * nt + 2 * nq + k] << "," << s_dof[6 + 9 * ne + 2 * nt + 2 * nq +k] << "]" << std::endl;
+         //std::cerr << "H1 Wedge Quad-Face[" << t_dof[6 + 9 * ne + 2 * nt + 2 * nq + k] << "," << s_dof[6 + 9 * ne + 2 * nt + 2 * nq +k] << "]" << std::endl;
 
          k++;
       }
@@ -8524,7 +8530,7 @@ H1_WedgeElement::H1_WedgeElement(const int p,
          {
             t_dof[6 + 9 * ne + 2 * nt + 3 * nq + m] = 3 * p + l;
             s_dof[6 + 9 * ne + 2 * nt + 3 * nq + m] = 1 + k;
-            std::cerr << "H1 Wedge Interior[" << t_dof[6 + 9 * ne + 2 * nt + 3 * nq + m] << "," << s_dof[6 + 9 * ne + 2 * nt + 3 * nq +m] << "]" << std::endl;
+           // std::cerr << "H1 Wedge Interior[" << t_dof[6 + 9 * ne + 2 * nt + 3 * nq + m] << "," << s_dof[6 + 9 * ne + 2 * nt + 3 * nq +m] << "]" << std::endl;
             l++; m++;
          }
       }
@@ -8538,7 +8544,8 @@ H1_WedgeElement::H1_WedgeElement(const int p,
       Nodes.IntPoint(i).x = t_Nodes.IntPoint(t_dof[i]).x;
       Nodes.IntPoint(i).y = t_Nodes.IntPoint(t_dof[i]).y;
       Nodes.IntPoint(i).z = s_Nodes.IntPoint(s_dof[i]).x;
-      std::cerr << "wedge nodes[" << i << "] = [" << Nodes.IntPoint(i).x << "," << Nodes.IntPoint(i).y << "," << Nodes.IntPoint(i).z << "]" << std::endl; 
+      //std::cerr << "wedge nodes[" << i << "] = [" << Nodes.IntPoint(i).x << "," << Nodes.IntPoint(i).y << "," << Nodes.IntPoint(i).z << "]" << std::endl; 
+      //std::cerr << "wedge nodes[" << i << "] = [" << Nodes.IntPoint(i).y << "," << Nodes.IntPoint(i).z << "," << Nodes.IntPoint(i).x << "]" << std::endl; 
    }
 }
 
