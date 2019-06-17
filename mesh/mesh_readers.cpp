@@ -830,7 +830,7 @@ void Mesh::GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, co
          //GenVtkSortedPerm(perm, -1e2, 1e4, 1e6, offset, cells_data, points);
          int offset = nn + 1;
          offset = nn + 1 + 2*faceSize ;
-         GenVtkSortedPerm(perm, -1e3, 1e5, 0, offset, cells_data, points);// affects bottom face
+         GenVtkSortedPerm(perm, 1e5, 1e3, 0, offset, cells_data, points);// affects bottom face // local front face
          for(i = 0; i < tetFaceA.Size(); i++, nn++)
          {
             tetFaceA[perm[i]] = nn;
@@ -844,7 +844,7 @@ void Mesh::GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, co
          // MFEM 032
          //offset = nn + 1 + 1*faceSize ;
          offset = nn + 1;
-         GenVtkSortedPerm(perm, 1, 1e3, 1e5, offset, cells_data, points); //affects rear face
+         GenVtkSortedPerm(perm, 1, 1e3, -1e5, offset, cells_data, points); //affects rear face // local rear face
          for(i = 0; i < tetFaceB.Size(); i++, nn++)
          {
             tetFaceB[perm[i]] = nn ;
@@ -855,10 +855,9 @@ void Mesh::GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, co
             std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
          }
          //MFEM 013
-         offset = nn + 1 + -1*faceSize ;
          offset = nn + 1 + -2*faceSize ;
-         offset = nn + 1;
-         GenVtkSortedPerm(perm, 1, 1e3, 1e5, offset, cells_data, points); //affects front face
+         //offset = nn + 1;
+         GenVtkSortedPerm(perm, 1, 0,-1e3, offset, cells_data, points); //affects front face // local bottom face
          for(i = 0; i < tetFaceC.Size(); i++, nn++)
          {
             tetFaceC[perm[i]] = nn;
@@ -870,7 +869,7 @@ void Mesh::GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, co
          }
          // MFEM 021
          offset = nn + 1;
-         GenVtkSortedPerm(perm, 0, -1e3, -1e5, offset, cells_data, points); //affects left face
+         GenVtkSortedPerm(perm, 0, -1e3, -1e5, offset, cells_data, points); //affects left face // local left face
          for(i = 0; i < tetFaceD.Size(); i++, nn++)
          {
             tetFaceD[perm[i]] = nn;
