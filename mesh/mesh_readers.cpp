@@ -798,7 +798,7 @@ void Mesh::GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, co
          std::cerr << "= [" << x << "," << y << "," << z << "]" << std::endl;
       }
       // we need to permute some edges 
- #if 0
+ #if 1
       tetEdges.Append(tetEdge01);
       tetEdges.Append(tetEdge03);
       tetEdges.Append(tetEdge12);
@@ -806,12 +806,24 @@ void Mesh::GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, co
       tetEdges.Append(tetEdge13);
       tetEdges.Append(tetEdge23);
 #endif
+
+#if 0
       tetEdges.Append(tetEdge01);
       tetEdges.Append(tetEdge12);
       tetEdges.Append(tetEdge03);
       tetEdges.Append(tetEdge13);
       tetEdges.Append(tetEdge02);
       tetEdges.Append(tetEdge23);
+#endif
+
+#if 0
+      tetEdges.Append(tetEdge01);
+      tetEdges.Append(tetEdge13);
+      tetEdges.Append(tetEdge03);
+      tetEdges.Append(tetEdge12);
+      tetEdges.Append(tetEdge02);
+      tetEdges.Append(tetEdge23);
+#endif
       if(order > 2)
       {
          int faceSize = (pow(((order-3) * 2)+3,2)-1)/8; // same as triangle logic, but starting at order 3
@@ -1775,7 +1787,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       {
          wrong_orientation_flag[i] = false;
       }
-      CheckElementOrientationFlags(true,wrong_orientation_flag);
+      //CheckElementOrientationFlags(true,wrong_orientation_flag);
 
       finalize_topo = false;
 
@@ -1977,7 +1989,6 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                         if(wrong_orientation_flag[i])
                         {
                            GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
-                           //for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o4[ii]; 
                         }
                         else
                         {
@@ -1986,8 +1997,14 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      }
                      else if(order == 5)
                      {
-                        tet_map.SetSize(tet_size);
-                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o5[ii];  
+                        if(wrong_orientation_flag[i])
+                        {
+                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
+                        }
+                        else
+                        {
+                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o5[ii]; 
+                        } 
                      }
                      else if(order == 6)
                      {
@@ -2147,6 +2164,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
 #endif
          points.Destroy();
          read_gf = 0;
+         Finalize(false, true);
       } // else if(lagrangeElem)
    } // else order >= 2
 } // end ReadVTKMesh
