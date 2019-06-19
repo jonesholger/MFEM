@@ -1507,7 +1507,18 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
          wedgeOrderFromPoints[points] = ord;
       }
    }
-   
+
+   // The following boolean arrays are used to fixup an orientation error for a particular element
+   // Wedges are taken care of locally (i.e. in the reader) with alternative maps
+   // While tets are deferred to a Finalize call where DoNodeReorder makes the correction
+   Array<bool> wrong_orientation_flag(NumOfElements);
+   Array<bool> fix_it(NumOfElements);
+   for(i=0; i<NumOfElements;i++)
+   {
+      wrong_orientation_flag[i] = false;
+      fix_it[i] = false;
+   }
+
    // Read the cell types
    Dim = -1;
    int order = -1;
@@ -1642,6 +1653,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      new Wedge(cells_data[j+1], cells_data[j+2], cells_data[j+3],
                               cells_data[j+4], cells_data[j+5], cells_data[j+6]);
                   lagrangeElem = true;
+                  fix_it[i] = true; // allow wedges to be fixed locally via alternate map
                }
                break;    
             default:
@@ -1782,12 +1794,10 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
       // Generate faces and edges so that we can define 
       // FE space on the mesh
       FinalizeTopology();
-      Array<bool> wrong_orientation_flag(NumOfElements);
-      for(i=0; i<NumOfElements;i++)
-      {
-         wrong_orientation_flag[i] = false;
-      }
-      //CheckElementOrientationFlags(true,wrong_orientation_flag);
+      
+      // note fix_it in the following call will be false except for wedges
+      // Jacobian determinant gets checked again in finalize downstream
+      CheckElementOrientationFlags(fix_it,wrong_orientation_flag);
 
       finalize_topo = false;
 
@@ -1964,51 +1974,22 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                      tet_map.SetSize(tet_size);
                      if(order == 2)
                      {
-                        if(wrong_orientation_flag[i])
-                        {
-                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
-                        }
-                        else
-                        {
-                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o2[ii];  
-                        }
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o2[ii];  
                      }
                      else if(order == 3)
                      {
-                        if(wrong_orientation_flag[i])
-                        {
-                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
-                        }
-                        else
-                        {
-                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o3[ii];
-                        }  
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o3[ii];
                      }
                      else if(order == 4)
                      {
-                        if(wrong_orientation_flag[i])
-                        {
-                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
-                        }
-                        else
-                        {
-                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o4[ii]; 
-                        } 
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o4[ii]; 
                      }
                      else if(order == 5)
                      {
-                        if(wrong_orientation_flag[i])
-                        {
-                           GenVtkTetMapAlt(tet_map,cells_data,points,order);                              
-                        }
-                        else
-                        {
-                           for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o5[ii]; 
-                        } 
+                        for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o5[ii]; 
                      }
                      else if(order == 6)
                      {
-                        tet_map.SetSize(tet_size);
                         for(int ii=0; ii < tet_size; ii++) tet_map[ii] = vtk_tet_o6[ii];  
                      }
                      tetMapInitialized = true;

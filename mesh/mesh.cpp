@@ -3812,7 +3812,6 @@ int Mesh::CheckElementOrientation(bool fix_it)
          }
       }
    }
-   std::cerr << "Diagnostic Orientation Fix: wrong=" << wo << " fixed=" << fo << std::endl;
 #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
    if (wo > 0)
       mfem::out << "Elements with wrong orientation: " << wo << " / "
@@ -3822,7 +3821,7 @@ int Mesh::CheckElementOrientation(bool fix_it)
    return wo;
 }
 
-int Mesh::CheckElementOrientationFlags(bool fix_it, Array<bool>&wrong_orientation_flag)
+int Mesh::CheckElementOrientationFlags(Array<bool>&fix_it, Array<bool>&wrong_orientation_flag)
 {
    int i, j, k, wo = 0, fo = 0, *vi = 0;
    double *v[4];
@@ -3854,7 +3853,7 @@ int Mesh::CheckElementOrientationFlags(bool fix_it, Array<bool>&wrong_orientatio
          if (J.Det() < 0.0)
          {
             wrong_orientation_flag[i] = true;
-            if (fix_it)
+            if (fix_it[i])
             {
                switch (GetElementType(i))
                {
@@ -3907,7 +3906,7 @@ int Mesh::CheckElementOrientationFlags(bool fix_it, Array<bool>&wrong_orientatio
                {
                   wrong_orientation_flag[i] = true;
                   wo++;
-                  if (fix_it)
+                  if (fix_it[i])
                   {
                      mfem::Swap(vi[0], vi[1]);
                      fo++;
@@ -3922,7 +3921,7 @@ int Mesh::CheckElementOrientationFlags(bool fix_it, Array<bool>&wrong_orientatio
                {
                   wrong_orientation_flag[i] = true;
                   wo++;
-                  if (fix_it)
+                  if (fix_it[i])
                   {
                      // how?
                      std:cerr << "Wedge Orientation Fixup with Flags" << std::endl;
@@ -3940,7 +3939,7 @@ int Mesh::CheckElementOrientationFlags(bool fix_it, Array<bool>&wrong_orientatio
                {
                   wrong_orientation_flag[i] = true;
                   wo++;
-                  if (fix_it)
+                  if (fix_it[i])
                   {
                      // how?
                   }

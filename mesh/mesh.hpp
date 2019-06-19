@@ -978,7 +978,7 @@ public:
    /// Check the orientation of the elements
    /** @return The number of elements with wrong orientation. */
    int CheckElementOrientation(bool fix_it = true);
-   int CheckElementOrientationFlags(bool fix_it, Array<bool>&wrong_orientation_flag);
+   int CheckElementOrientationFlags(Array<bool>&fix_it, Array<bool>&wrong_orientation_flag);
    /// Check the orientation of the boundary elements
    /** @return The number of boundary elements with wrong orientation. */
    int CheckBdrElementOrientation(bool fix_it = true);
