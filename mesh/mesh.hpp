@@ -169,13 +169,9 @@ protected:
    static const int vtk_tet_o6[84];
 
    static const int vtk_wedge_o3[40];
-   static const int vtk_wedge_o3_alt[40];
    static const int vtk_wedge_o4[75];
-   static const int vtk_wedge_o4_alt[75];
    static const int vtk_wedge_o5[126];
-   static const int vtk_wedge_o5_alt[126];
    static const int vtk_wedge_o6[196];
-   static const int vtk_wedge_o6_alt[196];
 
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
@@ -230,14 +226,8 @@ protected:
    void ReadNetgen2DMesh(std::istream &input, int &curved);
    void ReadNetgen3DMesh(std::istream &input);
    void ReadTrueGridMesh(std::istream &input);
-   void GenVtkSortedPerm(Array<int> &perm, double wx, double wy, double wz, int offset, const Array<int> &cells_data, const Vector &points);
    void GenVtkQuadMap(Array<int> &quad_map, const int order);
    void GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const Vector &points, const int order);
-   void GenVtkTriMap(Array<int> &tri_map, const Array<int> &cells_data, const Vector &points, const int order);
-   void GenVtkTetMap(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order);
-   void GenVtkTetMapAlt(Array<int> &tet_map, const Array<int> &cells_data, const Vector &points, const int order);
-   void GenVtkWedgeMap(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order);
-   void GenVtkWedgeMapAlt(Array<int> &wedge_map, const Array<int> &cells_data, const Vector &points, const int order);
    void ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                     bool &finalize_topo);
    void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
