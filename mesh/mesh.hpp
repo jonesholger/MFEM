@@ -160,7 +160,7 @@ protected:
 
 
    // We're also adding some static tri/tet/wedge permutation maps for the vtk lagrange cell types.
-   // These maps are needed since we use the reference cell in various generate map functions to 
+   // These maps used the reference cell in various generate map functions to 
    // determine the permutation via sorting of faces or internal nodes depending on the situation.
    // The static maps should work up to the currently permitted max order for tri/tet/wedges of order 6
    static const int vtk_tri_o5[21];
@@ -232,7 +232,7 @@ protected:
    void ReadNetgen3DMesh(std::istream &input);
    void ReadTrueGridMesh(std::istream &input);
    void GenVtkQuadMap(Array<int> &quad_map, const int order);
-   void GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const Vector &points, const int order);
+   void GenVtkHexMap(Array<int> &hex_map,  const int order);
    void ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                     bool &finalize_topo);
    void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
@@ -983,7 +983,6 @@ public:
    /// Check the orientation of the elements
    /** @return The number of elements with wrong orientation. */
    int CheckElementOrientation(bool fix_it = true);
-   int CheckElementOrientationFlags(Array<bool>&fix_it, Array<bool>&wrong_orientation_flag);
    /// Check the orientation of the boundary elements
    /** @return The number of boundary elements with wrong orientation. */
    int CheckBdrElementOrientation(bool fix_it = true);

@@ -491,10 +491,11 @@ void Mesh::GenVtkQuadMap(Array<int> &quad_map, const int order)
    quad_map.Append(quadint);
 }
 
-void Mesh::GenVtkHexMap(Array<int> &hex_map, const Array<int> &cells_data, const Vector &points, const int order)
+void Mesh::GenVtkHexMap(Array<int> &hex_map, const int order)
 {
 
    int hex_size = pow(order+1,3);
+   hex_map.SetSize(0);
 
    Array<int> hexverts(8), hexedges(10 * (order-1)), hexedge_br(order-1), hexedge_bl(order-1), 
                hexface_left(pow(order-1,2)), hexface_right(pow(order-1,2)), hexface_front(pow(order-1,2)), 
@@ -1127,7 +1128,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf,
                case Geometry::CUBE:
                   if(! hexMapInitialized)
                   {
-                     GenVtkHexMap(hex_map, cells_data, points, order);
+                     GenVtkHexMap(hex_map, order);
                      hexMapInitialized = true;
                   }
                   vtk_map = &hex_map; 
